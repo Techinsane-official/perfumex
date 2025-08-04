@@ -5,14 +5,20 @@ if (process.env.NODE_ENV === "production") {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Disable standalone output for local development (Windows symlink issues)
-  // Standalone output is only needed for Vercel deployment
+  // Optimized for cPanel memory constraints
   typescript: {
     ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
   },
+  // Reduce memory usage
+  experimental: {
+    memoryBasedWorkers: false,
+  },
+  // Optimize for production
+  swcMinify: true,
+  compress: true,
   // Add security headers
   async headers() {
     return [
