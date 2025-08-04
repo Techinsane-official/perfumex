@@ -1,0 +1,348 @@
+# Project X - Structure Overview
+
+## 📁 Projectstructuur – bijgewerkt
+
+```
+projextX/
+├── app/
+│   ├── api/
+│   │   ├── admin/
+│   │   │   ├── audit-logs/
+│   │   │   │   └── route.ts
+│   │   │   ├── brands/
+│   │   │   │   └── route.ts
+│   │   │   ├── export/
+│   │   │   │   ├── bulk/
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── repeat/
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── templates/
+│   │   │   │       └── route.ts
+│   │   │   ├── export-history/
+│   │   │   │   └── route.ts
+│   │   │   ├── import/
+│   │   │   │   ├── bulk/
+│   │   │   │   │   └── route.ts
+│   │   │   │   ├── check-duplicates/
+│   │   │   │   │   └── route.ts
+│   │   │   ├── import-history/
+│   │   │   │   └── route.ts
+│   │   │   ├── import-rollback/
+│   │   │   │   └── route.ts
+│   │   │   ├── orders/
+│   │   │   │   ├── export-pdf/
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── products/
+│   │   │   │   ├── export/
+│   │   │   │   │   └── route.ts
+│   │   │   │   └── images/
+│   │   │   │       └── route.ts
+│   │   │   ├── security/
+│   │   │   │   └── route.ts
+│   │   │   └── users/
+│   │   │       ├── [id]/
+│   │   │       │   ├── activity/
+│   │   │       │   │   └── route.ts
+│   │   │       │   ├── generate-url/
+│   │   │       │   │   └── route.ts
+│   │   │       │   └── route.ts
+│   │   │       └── route.ts
+│   │   ├── auth/
+│   │   │   └── [...nextauth]/
+│   │   │       └── route.ts
+│   │   ├── customer/
+│   │   │   ├── invoices/
+│   │   │   │   └── route.ts
+│   │   │   ├── orders/
+│   │   │   │   ├── [id]/
+│   │   │   │   │   └── pdf/
+│   │   │   │   │       └── route.ts
+│   │   │   │   └── route.ts
+│   │   │   ├── price-summary/
+│   │   │   │   └── route.ts
+│   │   │   └── reviews/
+│   │   │       └── route.ts
+│   │   ├── import/
+│   │   │   ├── [id]/
+│   │   │   │   └── route.ts
+│   │   │   └── rollback/
+│   │   │       └── route.ts
+│   │   ├── notifications/
+│   │   │   ├── [id]/
+│   │   │   │   └── read/
+│   │   │   │       └── route.ts
+│   │   │   ├── push/
+│   │   │   │   └── route.ts
+│   │   │   └── read-all/
+│   │   │       └── route.ts
+│   │   ├── orders/
+│   │   │   └── route.ts
+│   │   ├── products/
+│   │   │   └── route.ts
+│   │   └── reviews/
+│   │       └── route.ts
+│   ├── admin/
+│   │   ├── audit-trail/
+│   │   │   └── page.tsx
+│   │   ├── customers/
+│   │   │   ├── [id]/
+│   │   │   │   └── edit/
+│   │   │   │       └── page.tsx
+│   │   │   └── new/
+│   │   │       ├── actions.ts
+│   │   │       └── page.tsx
+│   │   ├── dashboard/
+│   │   │   ├── DashboardClient.tsx
+│   │   │   └── page.tsx
+│   │   ├── export-history/
+│   │   │   └── page.tsx
+│   │   ├── import-history/
+│   │   │   └── page.tsx
+│   │   ├── mobile/
+│   │   │   └── page.tsx
+│   │   ├── orders/
+│   │   │   ├── new/
+│   │   │   │   ├── actions.ts
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx
+│   │   ├── products/
+│   │   │   ├── [id]/
+│   │   │   │   ├── delete/
+│   │   │   │   │   ├── actions.ts
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── edit/
+│   │   │   │       ├── actions.ts
+│   │   │   │       └── page.tsx
+│   │   │   ├── import/
+│   │   │   │   └── page.tsx
+│   │   │   ├── new/
+│   │   │   │   └── page.tsx
+│   │   │   └── page.tsx
+│   │   ├── reviews/
+│   │   │   └── page.tsx
+│   │   └── users/
+│   │       ├── new/
+│   │       │   └── page.tsx
+│   │       └── page.tsx
+│   ├── dashboard/
+│   │   └── page.tsx
+│   ├── login/
+│   │   ├── admin/
+│   │   │   └── page.tsx
+│   │   ├── buyer/
+│   │   │   └── page.tsx
+│   │   └── page.tsx
+│   ├── order-confirmation/
+│   │   └── page.tsx
+│   ├── order-preview/
+│   │   └── page.tsx
+│   ├── orders/
+│   │   └── page.tsx
+│   ├── products/
+│   │   └── page.tsx
+│   ├── globals.css
+│   ├── layout.tsx
+│   └── page.tsx
+├── components/
+│   ├── admin/
+│   │   ├── actions.ts
+│   │   ├── AuditTrail.tsx
+│   │   ├── CreateUserForm.tsx
+│   │   ├── MobileAdminDashboard.tsx
+│   │   ├── ProductForm.tsx
+│   │   ├── ProductList.tsx
+│   │   └── UserList.tsx
+│   ├── dashboard/
+│   │   ├── DashboardTabs.tsx
+│   │   ├── Downloads.tsx
+│   │   ├── NotificationCenter.tsx
+│   │   ├── OrderHistory.tsx
+│   │   ├── PricingSummary.tsx
+│   │   └── ReviewManagement.tsx
+│   ├── orders/
+│   │   └── OrderList.tsx
+│   ├── products/
+│   │   └── ProductGrid.tsx
+│   └── ui/
+│       ├── AccessUrlDialog.tsx
+│       ├── BackButton.tsx
+│       ├── Badge.tsx
+│       ├── BrandAutocomplete.tsx
+│       ├── BulkExportDialog.tsx
+│       ├── Button.tsx
+│       ├── Card.tsx
+│       ├── ColumnMapper.tsx
+│       ├── CSRFToken.tsx
+│       ├── DuplicateDetectionConfig.tsx
+│       ├── ErrorBoundary.tsx
+│       ├── ExportTemplateManager.tsx
+│       ├── FileValidationDisplay.tsx
+│       ├── Form.tsx
+│       ├── ImageUpload.tsx
+│       ├── ImportPreviewTable.tsx
+│       ├── ImportProgress.tsx
+│       ├── ImportRollbackDialog.tsx
+│       ├── ImportStartButton.tsx
+│       ├── ImportSuccess.tsx
+│       ├── MobileNavigation.tsx
+│       ├── Modal.tsx
+│       ├── NotificationCenter.tsx
+│       ├── OfflineIndicator.tsx
+│       ├── OrderPDFExportDialog.tsx
+│       ├── ProductExportDialog.tsx
+│       ├── PWAInstallPrompt.tsx
+│       ├── PWAProvider.tsx
+│       ├── Sidebar.tsx
+│       ├── StatusBadge.tsx
+│       ├── Table.tsx
+│       ├── TagsInput.tsx
+│       ├── UserActivityDialog.tsx
+│       └── ValidationSummary.tsx
+├── lib/
+│   ├── import/
+│   │   ├── importHistory.ts
+│   │   ├── importProducts.ts
+│   │   └── importRollback.ts
+│   ├── validation/
+│   │   ├── fileValidation.ts
+│   │   └── importValidation.ts
+│   ├── utils/
+│   │   └── mapFormFields.ts
+│   ├── audit.ts
+│   ├── auth.ts
+│   ├── csrf.ts
+│   ├── middleware-utils.ts
+│   ├── pricing.ts
+│   ├── prisma.ts
+│   ├── rate-limit.ts
+│   ├── security-monitoring.ts
+│   ├── supabase.ts
+│   ├── utils.ts
+│   └── validation.ts
+├── types/
+│   ├── next-auth.d.ts
+│   └── test-strict.ts
+├── prisma/
+│   ├── migrations/
+│   ├── schema.prisma
+│   └── seed.ts
+├── public/
+│   ├── browserconfig.xml
+│   ├── file.svg
+│   ├── globe.svg
+│   ├── manifest.json
+│   ├── next.svg
+│   ├── offline.html
+│   ├── placeholder-image.png
+│   ├── sw.js
+│   ├── vercel.svg
+│   └── window.svg
+├── scripts/
+│   ├── add-dynamic-rendering.ts
+│   ├── cleanup-direct.ts
+│   ├── cleanup.ts
+│   ├── debug-cleanup.ts
+│   ├── debug-database.ts
+│   ├── safe-cleanup.ts
+│   └── seed-testproducts.ts
+├── dev/
+│   └── import-sample.csv
+├── e2e/
+├── __tests__/
+├── .github/
+├── middleware.ts
+├── next.config.js
+├── tailwind.config.mjs
+├── postcss.config.js
+├── eslint.config.mjs
+├── tsconfig.json
+├── netlify.toml
+├── package.json
+├── generate-tasks.md
+├── structure.mdc
+├── ProjectX-PRD.md
+├── DEPLOYMENT.md
+├── AUDIT_LOGGING.md
+├── BACKUP_STRATEGY.md
+├── DATABASE_PERFORMANCE.md
+├── SUPABASE_SETUP.md
+├── GITHUB_ACTIONS_SETUP.md
+├── README.md
+└── env.example
+```
+
+## 📋 Component Organisatie
+
+### UI Components (`components/ui/`)
+Herbruikbare UI componenten voor het hele platform:
+- **Button.tsx** - Herbruikbare knoppen met varianten
+- **Card.tsx** - Layout componenten
+- **Modal.tsx** - Dialog componenten
+- **Table.tsx** - Data tabellen
+- **Badge.tsx** - Status badges
+- **Form.tsx** - Form wrappers
+- **Sidebar.tsx** - Navigatie componenten
+- **StatusBadge.tsx** - Status indicators
+- **ErrorBoundary.tsx** - Error handling
+
+### Module Components
+- **`components/admin/`** - Admin-specifieke componenten
+- **`components/dashboard/`** - Customer dashboard componenten
+- **`components/products/`** - Product-gerelateerde componenten
+- **`components/orders/`** - Order management componenten
+
+### Import/Export Components (`components/ui/`)
+- **ImportRollbackDialog.tsx** - Rollback functionaliteit
+- **ImportProgress.tsx** - Import voortgang
+- **ImportPreviewTable.tsx** - Import preview
+- **BulkExportDialog.tsx** - Export functionaliteit
+- **ProductExportDialog.tsx** - Product export
+- **ExportTemplateManager.tsx** - Export templates
+
+## 🔧 Library Structure
+
+### Core Libraries (`lib/`)
+- **`lib/auth.ts`** - Authentication utilities
+- **`lib/prisma.ts`** - Database client
+- **`lib/utils.ts`** - General utilities
+- **`lib/pricing.ts`** - Pricing calculations
+- **`lib/audit.ts`** - Audit logging
+- **`lib/validation.ts`** - Data validation
+
+### Import System (`lib/import/`)
+- **`importProducts.ts`** - Product import logic
+- **`importHistory.ts`** - Import history tracking
+- **`importRollback.ts`** - Rollback functionality
+
+### Validation (`lib/validation/`)
+- **`fileValidation.ts`** - File upload validation
+- **`importValidation.ts`** - Import data validation
+
+## 📁 API Routes
+
+### Admin API (`app/api/admin/`)
+- Product management
+- User management
+- Export/Import operations
+- Audit logging
+- Security monitoring
+
+### Customer API (`app/api/customer/`)
+- Order management
+- Price summaries
+- Review system
+- Invoice generation
+
+### Import API (`app/api/import/`)
+- Rollback functionality
+- Import status tracking
+
+## 🎯 Best Practices
+
+1. **Component Organization**: Module-specific components in `components/[module]/`, reusable UI in `components/ui/`
+2. **Import Paths**: Use absolute imports with `@/` prefix
+3. **Type Safety**: All components use TypeScript with proper interfaces
+4. **Error Handling**: Comprehensive error boundaries and validation
+5. **Audit Logging**: All admin actions are logged for compliance
+6. **Security**: Role-based access control throughout the application 

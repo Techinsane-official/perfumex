@@ -1,0 +1,71 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { id: string; category: string } },
+) {
+  try {
+    // Check admin authentication
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify customer exists
+    const customer = await prisma.customer.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!customer) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+    }
+
+    // Find and delete the margin
+    const margin = await prisma.customerMargin.findUnique({
+      where: {
+        customerId_category: {
+          customerId: params.id,
+          category: decodeURIComponent(params.category),
+        },
+      },
+    });
+
+    if (!margin) {
+      return NextResponse.json({ error: "Margin not found" }, { status: 404 });
+    }
+
+    await prisma.customerMargin.delete({
+      where: { id: margin.id },
+    });
+
+    // Log the action
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "DELETE",
+        entity: "CustomerMargin",
+        entityId: margin.id,
+        details: {
+          customerId: params.id,
+          customerName: customer.name,
+          category: decodeURIComponent(params.category),
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "Margin deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error deleting customer margin:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to delete customer margin",
+      },
+      { status: 500 },
+    );
+  }
+}

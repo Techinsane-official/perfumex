@@ -1,0 +1,6 @@
+name,brand,content,ean,purchasePrice,retailPrice,stockQuantity,maxOrderableQuantity,starRating,category,subcategory,description,tags
+Aventus,Creed,100ml,1234567890123,25.50,45.00,100,10,5,Eau de Parfum,Oriental,Een verleidelijke geur met noten van bergamot en muskus,luxe,oriental,unisex
+Bleu de Chanel,Chanel,50ml,2345678901234,30.00,55.00,75,5,4,Eau de Toilette,Fresh,Een frisse en moderne geur voor de moderne man,fresh,modern,masculine
+La Vie Est Belle,Lancôme,75ml,3456789012345,20.00,35.00,150,15,3,Eau de Parfum,Floral,Een vrolijke en levendige geur met iris en jasmijn,floral,feminine,romantic
+Sauvage,Dior,100ml,4567890123456,35.00,65.00,50,3,5,Eau de Toilette,Fresh,Een krachtige en avontuurlijke geur,fresh,masculine,adventurous
+Black Opium,YSL,90ml,5678901234567,28.00,48.00,80,8,4,Eau de Parfum,Oriental,Een mysterieuze en sensuele geur met koffie en vanille,oriental,feminine,sensual 

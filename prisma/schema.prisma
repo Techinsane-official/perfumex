@@ -1,0 +1,632 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "debian-openssl-3.0.x"] // nodig voor Netlify Linux
+}
+
+/// @seed = "npx tsx prisma/seed.ts"
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and role management
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String?  // Only for admin users, null for buyers
+  role      UserRole @default(BUYER)
+  isActive  Boolean  @default(true)
+  customerId String? // Add customer relationship for buyers
+  clientRoleId String? // Add client role relationship
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  clientRole ClientRole? @relation(fields: [clientRoleId], references: [id])
+  orders    Order[]
+  auditLogs AuditLog[]
+  exportHistory ExportHistory[]
+  exportTemplates ExportTemplate[]
+  accessUrl UserAccessUrl?
+  moderatedReviews Review[] @relation("ReviewModerator")
+  approvedOrders Order[] @relation("OrderApprover")
+  assignedPicklists Picklist[] @relation("PicklistAssignee")
+  inventoryScans InventoryScan[] @relation("InventoryScanner")
+
+  @@index([username])
+  @@index([customerId])
+  @@index([clientRoleId])
+  @@map("users")
+}
+
+// Product model for perfume inventory
+model Product {
+  id                    String        @id @default(cuid())
+  name                  String
+  brand                 String
+  content               String        // Size/volume (e.g., "100ml", "50ml")
+  ean                   String        @unique
+  purchasePrice         Decimal       @db.Decimal(10, 2)
+  retailPrice           Decimal       @db.Decimal(10, 2)
+  stockQuantity         Int           @default(0)
+  maxOrderableQuantity  Int?
+  starRating            Int           @default(0) // 1-5 stars for popularity
+  category              String?
+  subcategory           String?
+  description           String?       // Rich text description
+  tags                  String[]
+  status                ProductStatus @default(ACTIEF)
+  isActive              Boolean       @default(true)
+  barcode               String?       // For barcode scanning
+  location              String?       // Warehouse location
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  // Relations
+  orderItems      OrderItem[]
+  images          ProductImage[]
+  customerPrices  CustomerPrice[]
+  reviews         Review[]
+  picklistItems   PicklistItem[]
+  inventoryScans  InventoryScan[]
+
+  @@index([brand])
+  @@index([category])
+  @@index([subcategory])
+  @@index([ean])
+  @@index([isActive])
+  @@index([status])
+  @@index([starRating])
+  @@index([name]) // For product name search
+  @@index([brand, category]) // Composite index for brand+category filtering
+  @@index([isActive, starRating]) // Composite index for active products by popularity
+  @@index([status, isActive]) // Composite index for status filtering
+  @@index([createdAt]) // For sorting by newest products
+  @@index([purchasePrice]) // For price range filtering
+  @@index([retailPrice]) // For price range filtering
+  @@index([stockQuantity]) // For stock filtering
+  @@index([barcode]) // For barcode scanning
+  @@index([location]) // For warehouse location
+  @@map("products")
+}
+
+// Product images with main + additional images support
+model ProductImage {
+  id        String   @id @default(cuid())
+  productId String
+  url       String
+  alt       String?
+  isMain    Boolean  @default(false) // Main product image
+  order     Int      @default(0)     // For ordering multiple images
+  createdAt DateTime @default(now())
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([isMain])
+  @@map("product_images")
+}
+
+// Customer model for B2B customers
+model Customer {
+  id                    String   @id @default(cuid())
+  name                  String
+  email                 String   @unique
+  phone                 String?
+  address               String?
+  generalMargin         Decimal  @db.Decimal(5, 2) @default(0) // Percentage margin
+  minimumOrderValue     Decimal  @db.Decimal(10, 2) @default(0) // Minimum order value
+  minimumOrderItems     Int      @default(0) // Minimum number of different items
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  users           User[] // Add users relation
+  orders           Order[]
+  customerMargins  CustomerMargin[]
+  customerPrices   CustomerPrice[]
+  customerDiscounts CustomerDiscount[]
+  hiddenCategories CustomerHiddenCategory[]
+  promotionCustomers PromotionCustomer[]
+  reviews          Review[]
+
+  @@index([email])
+  @@index([isActive])
+  @@index([name]) // For customer name search
+  @@index([isActive, createdAt]) // Composite index for active customers by date
+  @@index([generalMargin]) // For margin-based filtering
+  @@map("customers")
+}
+
+// Customer-specific margins per category (override general margin)
+model CustomerMargin {
+  id         String   @id @default(cuid())
+  customerId String
+  category   String
+  margin     Decimal  @db.Decimal(5, 2) // Percentage
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, category])
+  @@index([customerId])
+  @@index([category])
+  @@map("customer_margins")
+}
+
+// Customer-specific prices per product (override margin calculation)
+model CustomerPrice {
+  id         String   @id @default(cuid())
+  customerId String
+  productId  String
+  price      Decimal  @db.Decimal(10, 2)
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, productId])
+  @@index([customerId])
+  @@index([productId])
+  @@map("customer_prices")
+}
+
+// Customer discounts per brand
+model CustomerDiscount {
+  id         String   @id @default(cuid())
+  customerId String
+  brand      String
+  discount   Decimal  @db.Decimal(5, 2) // Percentage discount
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, brand])
+  @@index([customerId])
+  @@index([brand])
+  @@map("customer_discounts")
+}
+
+// Hidden categories per customer
+model CustomerHiddenCategory {
+  id         String   @id @default(cuid())
+  customerId String
+  category   String
+
+  // Relations
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([customerId, category])
+  @@index([customerId])
+  @@map("customer_hidden_categories")
+}
+
+// Temporary promotions
+model Promotion {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  discount    Decimal  @db.Decimal(5, 2) // Percentage
+  startDate   DateTime
+  endDate     DateTime
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  promotionCustomers PromotionCustomer[]
+
+  @@index([startDate])
+  @@index([endDate])
+  @@index([isActive])
+  @@map("promotions")
+}
+
+// Promotion assignments to customers
+model PromotionCustomer {
+  id          String @id @default(cuid())
+  promotionId String
+  customerId  String
+
+  // Relations
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([promotionId, customerId])
+  @@index([promotionId])
+  @@index([customerId])
+  @@map("promotion_customers")
+}
+
+// Order model with approval workflow
+model Order {
+  id          String      @id @default(cuid())
+  customerId  String
+  userId      String
+  status      OrderStatus @default(PENDING)
+  totalAmount Decimal     @db.Decimal(10, 2)
+  notes       String?
+  approvedBy  String?     // Admin user ID who approved/rejected
+  approvedAt  DateTime?
+  rejectionReason String? // Reason for rejection
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  customer   Customer    @relation(fields: [customerId], references: [id])
+  user       User        @relation(fields: [userId], references: [id])
+  approvedUser User?     @relation("OrderApprover", fields: [approvedBy], references: [id])
+  orderItems OrderItem[]
+  picklist   Picklist?
+
+  @@index([customerId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([customerId, status]) // Composite index for customer orders by status
+  @@index([status, createdAt]) // Composite index for orders by status and date
+  @@index([approvedBy]) // For admin approval tracking
+  @@index([approvedAt]) // For approval date filtering
+  @@map("orders")
+}
+
+// Order items with quantity and price at time of order
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  price     Decimal  @db.Decimal(10, 2) // Price at time of order
+  createdAt DateTime @default(now())
+
+  // Relations
+  order   Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+// Audit logging for admin actions
+model AuditLog {
+  id        String      @id @default(cuid())
+  userId    String?
+  action    String      // CREATE, UPDATE, DELETE, APPROVE, REJECT
+  entity    String      // User, Product, Customer, Order, etc.
+  entityId  String?
+  details   Json?       // Additional details about the action
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime    @default(now())
+
+  // Relations
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+  @@index([userId, createdAt]) // Composite index for user activity timeline
+  @@index([entity, entityId]) // Composite index for entity-specific audit logs
+  @@index([action, createdAt]) // Composite index for action-based filtering
+  @@map("audit_logs")
+}
+
+// Import history for bulk operations
+model ImportHistory {
+  id          String   @id @default(cuid())
+  fileName    String
+  fileType    String   // CSV, EXCEL
+  entityType  String   // Product, Customer
+  totalRows   Int
+  importedRows Int
+  failedRows  Int
+  errors      Json?    // Array of error messages
+  importedBy  String   // User ID
+  createdAt   DateTime @default(now())
+
+  // Relations
+  snapshots ImportSnapshot[]
+  rollbacks ImportRollback[]
+
+  @@index([entityType])
+  @@index([importedBy])
+  @@index([createdAt])
+  @@index([entityType, createdAt]) // Composite index for entity-specific import history
+  @@index([importedBy, createdAt]) // Composite index for user import history
+  @@map("import_history")
+}
+
+// Import snapshots for rollback functionality
+model ImportSnapshot {
+  id          String   @id @default(cuid())
+  importId    String   // Reference to ImportHistory
+  entityType  String   // Product, Customer
+  snapshotData Json    // Complete snapshot of entities before import
+  createdAt   DateTime @default(now())
+
+  // Relations
+  import ImportHistory @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId])
+  @@index([entityType])
+  @@index([createdAt])
+  @@map("import_snapshots")
+}
+
+// Import rollback tracking
+model ImportRollback {
+  id          String   @id @default(cuid())
+  importId    String   // Reference to ImportHistory
+  rolledBackBy String  // User ID who performed rollback
+  entitiesRestored Int  // Number of entities restored
+  rollbackReason String? // Optional reason for rollback
+  createdAt   DateTime @default(now())
+
+  // Relations
+  import ImportHistory @relation(fields: [importId], references: [id], onDelete: Cascade)
+
+  @@index([importId])
+  @@index([rolledBackBy])
+  @@index([createdAt])
+  @@map("import_rollbacks")
+}
+
+// Export history for tracking all export operations
+model ExportHistory {
+  id          String   @id @default(cuid())
+  userId      String   // User who performed the export
+  exportType  String   // PRODUCT, ORDER, CUSTOMER, etc.
+  exportFormat String  // PDF, CSV, EXCEL
+  fileName    String   // Generated filename
+  fileSize    Int?     // File size in bytes
+  parameters  Json     // Export parameters (filters, columns, etc.)
+  recordCount Int      // Number of records exported
+  errors      Json?    // Array of error messages if any
+  status      String   // SUCCESS, FAILED, PARTIAL
+  createdAt   DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([exportType])
+  @@index([exportFormat])
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId, createdAt]) // Composite index for user export history
+  @@index([exportType, createdAt]) // Composite index for type-specific export history
+  @@map("export_history")
+}
+
+// Export templates for saving and reusing export configurations
+model ExportTemplate {
+  id          String   @id @default(cuid())
+  userId      String   // User who created the template
+  name        String   // Template name
+  description String?  // Optional description
+  exportType  String   // PRODUCT, ORDER, CUSTOMER, etc.
+  exportFormat String  // PDF, CSV, EXCEL
+  parameters  Json     // Export parameters (filters, columns, etc.)
+  isDefault   Boolean  @default(false) // Whether this is the default template for this type
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([exportType])
+  @@index([exportFormat])
+  @@index([isDefault])
+  @@index([userId, exportType]) // Composite index for user's templates by type
+  @@map("export_templates")
+}
+
+// User access URLs for unique login links
+model UserAccessUrl {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  accessToken String  @unique
+  expiresAt  DateTime
+  isUsed     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([accessToken])
+  @@index([expiresAt])
+  @@index([isUsed])
+  @@map("user_access_urls")
+}
+
+// Product reviews and ratings
+model Review {
+  id          String       @id @default(cuid())
+  productId   String
+  customerId  String
+  rating      Int          // 1-5 stars
+  title       String?      // Optional review title
+  comment     String       // Review text
+  status      ReviewStatus @default(PENDING) // PENDING, APPROVED, REJECTED
+  moderatedBy String?      // Admin user ID who moderated
+  moderatedAt DateTime?
+  rejectionReason String?  // Reason for rejection
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  product  Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  moderator User?   @relation("ReviewModerator", fields: [moderatedBy], references: [id])
+
+  @@index([productId])
+  @@index([customerId])
+  @@index([status])
+  @@index([rating])
+  @@index([createdAt])
+  @@index([productId, status]) // Composite index for product reviews by status
+  @@index([customerId, createdAt]) // Composite index for customer review history
+  @@map("reviews")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  BUYER
+}
+
+enum OrderStatus {
+  PENDING    // Waiting for approval
+  APPROVED   // Approved by admin
+  REJECTED   // Rejected by admin
+  CANCELLED  // Cancelled by customer
+}
+
+enum ProductStatus {
+  CONCEPT
+  ACTIEF
+  NIET_BESCHIKBAAR
+  VERVALLEN
+}
+
+enum ReviewStatus {
+  PENDING    // Waiting for admin approval
+  APPROVED   // Approved and visible
+  REJECTED   // Rejected by admin
+}
+
+// Picklist System for Warehouse Management
+model Picklist {
+  id          String        @id @default(cuid())
+  orderId     String        @unique // One picklist per order
+  status      PicklistStatus @default(PENDING)
+  assignedTo  String?       // User ID of assigned picker
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  order     Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  assignedUser User?   @relation("PicklistAssignee", fields: [assignedTo], references: [id])
+  pickItems PicklistItem[]
+
+  @@index([status])
+  @@index([assignedTo])
+  @@index([createdAt])
+  @@map("picklists")
+}
+
+model PicklistItem {
+  id         String           @id @default(cuid())
+  picklistId String
+  productId  String
+  quantity   Int
+  picked     Int              @default(0)
+  status     PickItemStatus   @default(PENDING)
+  scannedAt  DateTime?
+  pickedAt   DateTime?
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+
+  // Relations
+  picklist Picklist @relation(fields: [picklistId], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [productId], references: [id])
+
+  @@index([picklistId])
+  @@index([productId])
+  @@index([status])
+  @@map("picklist_items")
+}
+
+// Inventory scanning and tracking
+model InventoryScan {
+  id        String   @id @default(cuid())
+  productId String
+  scannedBy String   // User ID
+  quantity  Int
+  location  String?  // Warehouse location
+  notes     String?
+  scannedAt DateTime @default(now())
+
+  // Relations
+  product Product @relation(fields: [productId], references: [id])
+  scanner User    @relation("InventoryScanner", fields: [scannedBy], references: [id])
+
+  @@index([productId])
+  @@index([scannedBy])
+  @@index([scannedAt])
+  @@map("inventory_scans")
+}
+
+// Client roles and permissions
+model ClientRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  permissions String[] // Array of permission strings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  users User[]
+
+  @@map("client_roles")
+}
+
+// Integration settings for external platforms
+model Integration {
+  id          String   @id @default(cuid())
+  platform    String   @unique // "shopify", "bol", "amazon"
+  isActive    Boolean  @default(false)
+  apiKey      String?
+  apiSecret   String?
+  webhookUrl  String?
+  settings    Json?    // Platform-specific settings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("integrations")
+}
+
+// Multilingual support
+model Translation {
+  id       String @id @default(cuid())
+  key      String
+  language String
+  value    String
+  context  String? // For context-specific translations
+
+  @@unique([key, language, context])
+  @@index([key])
+  @@index([language])
+  @@map("translations")
+}
+
+
+
+// Add new enums for picklist system
+enum PicklistStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum PickItemStatus {
+  PENDING
+  PICKED
+  PARTIALLY_PICKED
+  OUT_OF_STOCK
+}

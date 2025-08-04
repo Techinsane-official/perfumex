@@ -1,0 +1,215 @@
+import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { z } from "zod";
+
+// Schema for discount creation/update
+const discountSchema = z.object({
+  brand: z.string().min(1, "Merk is verplicht"),
+  discount: z.number().min(0).max(100, "Korting moet tussen 0% en 100% liggen"),
+});
+
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    // Check admin authentication
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Verify customer exists
+    const customer = await prisma.customer.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!customer) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+    }
+
+    // Get customer discounts
+    const discounts = await prisma.customerDiscount.findMany({
+      where: { customerId: params.id },
+      orderBy: { brand: "asc" },
+    });
+
+    return NextResponse.json(discounts);
+  } catch (error) {
+    console.error("Error fetching customer discounts:", error);
+    return NextResponse.json(
+      {
+        error: "Failed to fetch customer discounts",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    // Check admin authentication
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const discountData = discountSchema.parse(body);
+
+    // Verify customer exists
+    const customer = await prisma.customer.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!customer) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+    }
+
+    // Check if discount already exists for this brand
+    const existingDiscount = await prisma.customerDiscount.findUnique({
+      where: {
+        customerId_brand: {
+          customerId: params.id,
+          brand: discountData.brand,
+        },
+      },
+    });
+
+    if (existingDiscount) {
+      return NextResponse.json(
+        {
+          error: "Discount already exists for this brand",
+        },
+        { status: 400 },
+      );
+    }
+
+    // Create discount
+    const discount = await prisma.customerDiscount.create({
+      data: {
+        customerId: params.id,
+        brand: discountData.brand,
+        discount: discountData.discount,
+      },
+    });
+
+    // Log the action
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "CREATE",
+        entity: "CustomerDiscount",
+        entityId: discount.id,
+        details: {
+          customerId: params.id,
+          customerName: customer.name,
+          brand: discountData.brand,
+          discount: discountData.discount,
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      discount,
+    });
+  } catch (error) {
+    console.error("Error creating customer discount:", error);
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Invalid discount data",
+          details: error.errors,
+        },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: "Failed to create customer discount",
+      },
+      { status: 500 },
+    );
+  }
+}
+
+export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
+  try {
+    // Check admin authentication
+    const session = await auth();
+    if (!session?.user || session.user.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const discountData = discountSchema.parse(body);
+
+    // Verify customer exists
+    const customer = await prisma.customer.findUnique({
+      where: { id: params.id },
+    });
+
+    if (!customer) {
+      return NextResponse.json({ error: "Customer not found" }, { status: 404 });
+    }
+
+    // Update discount
+    const discount = await prisma.customerDiscount.upsert({
+      where: {
+        customerId_brand: {
+          customerId: params.id,
+          brand: discountData.brand,
+        },
+      },
+      update: {
+        discount: discountData.discount,
+      },
+      create: {
+        customerId: params.id,
+        brand: discountData.brand,
+        discount: discountData.discount,
+      },
+    });
+
+    // Log the action
+    await prisma.auditLog.create({
+      data: {
+        userId: session.user.id,
+        action: "UPDATE",
+        entity: "CustomerDiscount",
+        entityId: discount.id,
+        details: {
+          customerId: params.id,
+          customerName: customer.name,
+          brand: discountData.brand,
+          discount: discountData.discount,
+        },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      discount,
+    });
+  } catch (error) {
+    console.error("Error updating customer discount:", error);
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Invalid discount data",
+          details: error.errors,
+        },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        error: "Failed to update customer discount",
+      },
+      { status: 500 },
+    );
+  }
+}

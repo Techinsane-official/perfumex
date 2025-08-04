@@ -1,0 +1,113 @@
+[build]
+  # Build command with Prisma generation
+  command = "npm run build"
+  
+  # Publish directory
+  publish = ".next"
+
+[build.environment]
+  # Node.js version
+  NODE_VERSION = "18"
+  
+  # Build environment
+  NODE_ENV = "production"
+  
+  # Prisma settings
+  PRISMA_GENERATE_DATAPROXY = "false"
+  PRISMA_CLI_QUERY_ENGINE_TYPE = "binary"
+  PRISMA_CLIENT_ENGINE_TYPE = "binary"
+
+# Build plugins
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+# Redirects for SPA routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Specific redirects for API routes
+[[redirects]]
+  from = "/api/*"
+  to = "/api/:splat"
+  status = 200
+
+# Admin routes
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin/:splat"
+  status = 200
+
+# Product routes
+[[redirects]]
+  from = "/products/*"
+  to = "/products/:splat"
+  status = 200
+
+# Order routes
+[[redirects]]
+  from = "/orders/*"
+  to = "/orders/:splat"
+  status = 200
+
+# Login routes
+[[redirects]]
+  from = "/login/*"
+  to = "/login/:splat"
+  status = 200
+
+# Handle Next.js static files
+[[redirects]]
+  from = "/_next/*"
+  to = "/_next/:splat"
+  status = 200
+
+# Handle public files
+[[redirects]]
+  from = "/manifest.json"
+  to = "/manifest.json"
+  status = 200
+
+[[redirects]]
+  from = "/sw.js"
+  to = "/sw.js"
+  status = 200
+
+[[redirects]]
+  from = "/offline.html"
+  to = "/offline.html"
+  status = 200
+
+# Security headers
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https:; frame-ancestors 'none';"
+
+# Cache static assets
+[[headers]]
+  for = "/_next/static/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "public, max-age=3600"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "public, max-age=0"
+
+# Handle 404 for SPA
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404

@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="nl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Offline - Project X</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .offline-container {
+        background: white;
+        border-radius: 16px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        max-width: 400px;
+        width: 100%;
+      }
+
+      .offline-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 24px;
+        background: #f3f4f6;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #6b7280;
+      }
+
+      .offline-icon svg {
+        width: 40px;
+        height: 40px;
+      }
+
+      h1 {
+        color: #1f2937;
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+
+      p {
+        color: #6b7280;
+        font-size: 16px;
+        line-height: 1.5;
+        margin-bottom: 32px;
+      }
+
+      .retry-button {
+        background: #2563eb;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .retry-button:hover {
+        background: #1d4ed8;
+      }
+
+      .cached-pages {
+        margin-top: 32px;
+        padding-top: 24px;
+        border-top: 1px solid #e5e7eb;
+      }
+
+      .cached-pages h3 {
+        color: #374151;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+
+      .page-links {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .page-link {
+        color: #2563eb;
+        text-decoration: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        transition: background-color 0.2s;
+      }
+
+      .page-link:hover {
+        background: #f3f4f6;
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #ef4444;
+        margin-right: 8px;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      @media (max-width: 480px) {
+        .offline-container {
+          padding: 24px;
+        }
+
+        h1 {
+          font-size: 20px;
+        }
+
+        p {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="offline-container">
+      <div class="offline-icon">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192L5.636 18.364M12 2.25a9.75 9.75 0 100 19.5 9.75 9.75 0 000-19.5z"
+          ></path>
+        </svg>
+      </div>
+
+      <h1>Je bent offline</h1>
+      <p>Geen internetverbinding gevonden. Controleer je netwerk en probeer opnieuw.</p>
+
+      <button class="retry-button" onclick="retryConnection()">Opnieuw proberen</button>
+
+      <div class="cached-pages">
+        <h3>Beschikbare pagina's</h3>
+        <div class="page-links">
+          <a href="/" class="page-link">🏠 Dashboard</a>
+          <a href="/products" class="page-link">📦 Producten</a>
+          <a href="/orders" class="page-link">📋 Bestellingen</a>
+          <a href="/admin/dashboard" class="page-link">⚙️ Admin Dashboard</a>
+        </div>
+      </div>
+
+      <div style="margin-top: 24px; font-size: 14px; color: #9ca3af">
+        <span class="status-indicator"></span>
+        Offline modus actief
+      </div>
+    </div>
+
+    <script>
+      function retryConnection() {
+        const button = document.querySelector(".retry-button");
+        const originalText = button.textContent;
+
+        button.textContent = "Controleren...";
+        button.disabled = true;
+
+        // Check if we're back online
+        if (navigator.onLine) {
+          window.location.reload();
+        } else {
+          // Simulate a network check
+          setTimeout(() => {
+            if (navigator.onLine) {
+              window.location.reload();
+            } else {
+              button.textContent = originalText;
+              button.disabled = false;
+              alert("Nog steeds geen internetverbinding. Controleer je netwerkinstellingen.");
+            }
+          }, 2000);
+        }
+      }
+
+      // Listen for online/offline events
+      window.addEventListener("online", () => {
+        window.location.reload();
+      });
+
+      window.addEventListener("offline", () => {
+        // Already on offline page, no action needed
+      });
+
+      // Check connection status periodically
+      setInterval(() => {
+        if (navigator.onLine) {
+          window.location.reload();
+        }
+      }, 5000);
+    </script>
+  </body>
+</html>
