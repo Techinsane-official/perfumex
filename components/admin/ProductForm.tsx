@@ -562,16 +562,38 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                   }`}
                 >
                   <option value="">Selecteer categorie</option>
-                  <option value="Eau de Parfum">Eau de Parfum</option>
-                  <option value="Eau de Toilette">Eau de Toilette</option>
-                  <option value="Eau de Cologne">Eau de Cologne</option>
-                  <option value="Parfum">Parfum</option>
-                  <option value="Body Spray">Body Spray</option>
-                  <option value="Gift Set">Gift Set</option>
-                  <option value="Miniature">Miniature</option>
-                  <option value="Travel Size">Travel Size</option>
+                  
+                  {/* Perfume Categories */}
+                  <optgroup label="Perfumes & Fragrances">
+                    <option value="Eau de Parfum">Eau de Parfum</option>
+                    <option value="Eau de Toilette">Eau de Toilette</option>
+                    <option value="Eau de Cologne">Eau de Cologne</option>
+                    <option value="Parfum">Parfum</option>
+                    <option value="Body Spray">Body Spray</option>
+                    <option value="Gift Set">Gift Set</option>
+                    <option value="Miniature">Miniature</option>
+                    <option value="Travel Size">Travel Size</option>
+                  </optgroup>
+
+                  {/* Clothing Categories */}
+                  <optgroup label="Clothing & Apparel">
+                    <option value="Men's Clothing">Men's Clothing</option>
+                    <option value="Women's Clothing">Women's Clothing</option>
+                    <option value="Kids' Clothing">Kids' Clothing</option>
+                    <option value="Unisex Clothing">Unisex Clothing</option>
+                    <option value="Activewear">Activewear</option>
+                    <option value="Formal Wear">Formal Wear</option>
+                    <option value="Casual Wear">Casual Wear</option>
+                    <option value="Outerwear">Outerwear</option>
+                    <option value="Underwear">Underwear</option>
+                    <option value="Sleepwear">Sleepwear</option>
+                    <option value="Swimwear">Swimwear</option>
+                    <option value="Accessories">Accessories</option>
+                  </optgroup>
                 </select>
-                {errors.category && <p className="mt-1 text-sm text-red-600">{errors.category}</p>}
+                {errors.category && (
+                  <p className="text-red-500 text-sm mt-1">{errors.category}</p>
+                )}
               </div>
 
               {/* Subcategory */}
@@ -592,6 +614,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                   disabled={!formData.category}
                 >
                   <option value="">Selecteer subcategorie</option>
+                  
+                  {/* Perfume Subcategories */}
                   {formData.category === "Eau de Parfum" && (
                     <>
                       <option value="Oriental">Oriental</option>
@@ -599,6 +623,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                       <option value="Woody">Woody</option>
                       <option value="Fresh">Fresh</option>
                       <option value="Citrus">Citrus</option>
+                      <option value="Spicy">Spicy</option>
+                      <option value="Aquatic">Aquatic</option>
                     </>
                   )}
                   {formData.category === "Eau de Toilette" && (
@@ -607,6 +633,7 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                       <option value="Classic">Classic</option>
                       <option value="Modern">Modern</option>
                       <option value="Fresh">Fresh</option>
+                      <option value="Elegant">Elegant</option>
                     </>
                   )}
                   {formData.category === "Gift Set" && (
@@ -615,14 +642,112 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                       <option value="Anniversary">Anniversary</option>
                       <option value="Birthday">Birthday</option>
                       <option value="Wedding">Wedding</option>
+                      <option value="Valentine's Day">Valentine's Day</option>
+                      <option value="Christmas">Christmas</option>
+                    </>
+                  )}
+
+                  {/* Clothing Subcategories */}
+                  {formData.category === "Men's Clothing" && (
+                    <>
+                      <option value="Shirts">Shirts</option>
+                      <option value="T-Shirts">T-Shirts</option>
+                      <option value="Pants">Pants</option>
+                      <option value="Jeans">Jeans</option>
+                      <option value="Shorts">Shorts</option>
+                      <option value="Jackets">Jackets</option>
+                      <option value="Coats">Coats</option>
+                      <option value="Suits">Suits</option>
+                      <option value="Sweaters">Sweaters</option>
+                      <option value="Hoodies">Hoodies</option>
+                      <option value="Polo Shirts">Polo Shirts</option>
+                      <option value="Dress Shirts">Dress Shirts</option>
+                    </>
+                  )}
+                  {formData.category === "Women's Clothing" && (
+                    <>
+                      <option value="Dresses">Dresses</option>
+                      <option value="Tops">Tops</option>
+                      <option value="Blouses">Blouses</option>
+                      <option value="T-Shirts">T-Shirts</option>
+                      <option value="Pants">Pants</option>
+                      <option value="Jeans">Jeans</option>
+                      <option value="Skirts">Skirts</option>
+                      <option value="Shorts">Shorts</option>
+                      <option value="Jackets">Jackets</option>
+                      <option value="Coats">Coats</option>
+                      <option value="Sweaters">Sweaters</option>
+                      <option value="Hoodies">Hoodies</option>
+                      <option value="Blazers">Blazers</option>
+                      <option value="Jumpsuits">Jumpsuits</option>
+                    </>
+                  )}
+                  {formData.category === "Kids' Clothing" && (
+                    <>
+                      <option value="Boys' Clothing">Boys' Clothing</option>
+                      <option value="Girls' Clothing">Girls' Clothing</option>
+                      <option value="Baby Clothing">Baby Clothing</option>
+                      <option value="Toddler Clothing">Toddler Clothing</option>
+                      <option value="School Uniforms">School Uniforms</option>
+                      <option value="Party Wear">Party Wear</option>
+                    </>
+                  )}
+                  {formData.category === "Activewear" && (
+                    <>
+                      <option value="Athletic Tops">Athletic Tops</option>
+                      <option value="Athletic Bottoms">Athletic Bottoms</option>
+                      <option value="Sports Bras">Sports Bras</option>
+                      <option value="Athletic Shorts">Athletic Shorts</option>
+                      <option value="Athletic Jackets">Athletic Jackets</option>
+                      <option value="Yoga Pants">Yoga Pants</option>
+                      <option value="Running Gear">Running Gear</option>
+                      <option value="Gym Wear">Gym Wear</option>
+                    </>
+                  )}
+                  {formData.category === "Formal Wear" && (
+                    <>
+                      <option value="Business Suits">Business Suits</option>
+                      <option value="Evening Dresses">Evening Dresses</option>
+                      <option value="Cocktail Dresses">Cocktail Dresses</option>
+                      <option value="Wedding Attire">Wedding Attire</option>
+                      <option value="Tuxedos">Tuxedos</option>
+                      <option value="Formal Shirts">Formal Shirts</option>
+                      <option value="Formal Pants">Formal Pants</option>
+                    </>
+                  )}
+                  {formData.category === "Outerwear" && (
+                    <>
+                      <option value="Winter Coats">Winter Coats</option>
+                      <option value="Light Jackets">Light Jackets</option>
+                      <option value="Rain Coats">Rain Coats</option>
+                      <option value="Blazers">Blazers</option>
+                      <option value="Vests">Vests</option>
+                      <option value="Cardigans">Cardigans</option>
+                      <option value="Sweaters">Sweaters</option>
+                    </>
+                  )}
+                  {formData.category === "Accessories" && (
+                    <>
+                      <option value="Belts">Belts</option>
+                      <option value="Scarves">Scarves</option>
+                      <option value="Gloves">Gloves</option>
+                      <option value="Hats">Hats</option>
+                      <option value="Socks">Socks</option>
+                      <option value="Ties">Ties</option>
+                      <option value="Handbags">Handbags</option>
+                      <option value="Wallets">Wallets</option>
+                      <option value="Jewelry">Jewelry</option>
+                      <option value="Watches">Watches</option>
                     </>
                   )}
                 </select>
                 {!formData.category && (
-                  <p className="mt-1 text-xs text-gray-500">Selecteer eerst een categorie</p>
+                  <p className="text-gray-500 text-sm mt-1">
+                    Selecteer eerst een categorie
+                  </p>
                 )}
                 {errors.subcategory && (
-                  <p className="mt-1 text-sm text-red-600">{errors.subcategory}</p>
+                  <p className="text-red-500 text-sm mt-1">{errors.subcategory}</p>
                 )}
               </div>
             </div>

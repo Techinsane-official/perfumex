@@ -138,7 +138,7 @@ export function validateImportData(
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
-        error.errors.forEach((err) => {
+        (error as z.ZodError).errors.forEach((err: any) => {
           errors.push(err.message);
         });
       } else {

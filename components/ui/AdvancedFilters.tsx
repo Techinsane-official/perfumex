@@ -144,7 +144,7 @@ export default function AdvancedFilters({
             value={localFilters.search}
             onChange={(e) => handleFilterChange("search", e.target.value)}
             placeholder="Search products..."
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
           />
         </div>
 
@@ -156,7 +156,7 @@ export default function AdvancedFilters({
           <select
             value={localFilters.brand}
             onChange={(e) => handleFilterChange("brand", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
           >
             <option value="">All Brands</option>
             {filterOptions.brands.map((brand) => (
@@ -175,14 +175,37 @@ export default function AdvancedFilters({
           <select
             value={localFilters.category}
             onChange={(e) => handleFilterChange("category", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
           >
             <option value="">All Categories</option>
-            {filterOptions.categories.map((category) => (
-              <option key={category} value={category}>
-                {category}
-              </option>
-            ))}
+            
+            {/* Perfume Categories */}
+            <optgroup label="Perfumes & Fragrances">
+              <option value="Eau de Parfum">Eau de Parfum</option>
+              <option value="Eau de Toilette">Eau de Toilette</option>
+              <option value="Eau de Cologne">Eau de Cologne</option>
+              <option value="Parfum">Parfum</option>
+              <option value="Body Spray">Body Spray</option>
+              <option value="Gift Set">Gift Set</option>
+              <option value="Miniature">Miniature</option>
+              <option value="Travel Size">Travel Size</option>
+            </optgroup>
+
+            {/* Clothing Categories */}
+            <optgroup label="Clothing & Apparel">
+              <option value="Men's Clothing">Men's Clothing</option>
+              <option value="Women's Clothing">Women's Clothing</option>
+              <option value="Kids' Clothing">Kids' Clothing</option>
+              <option value="Unisex Clothing">Unisex Clothing</option>
+              <option value="Activewear">Activewear</option>
+              <option value="Formal Wear">Formal Wear</option>
+              <option value="Casual Wear">Casual Wear</option>
+              <option value="Outerwear">Outerwear</option>
+              <option value="Underwear">Underwear</option>
+              <option value="Sleepwear">Sleepwear</option>
+              <option value="Swimwear">Swimwear</option>
+              <option value="Accessories">Accessories</option>
+            </optgroup>
           </select>
         </div>
 
@@ -194,7 +217,7 @@ export default function AdvancedFilters({
           <select
             value={localFilters.availability}
             onChange={(e) => handleFilterChange("availability", e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
           >
             <option value="">All</option>
             <option value="available">In Stock</option>
@@ -209,6 +232,48 @@ export default function AdvancedFilters({
           <h4 className="text-md font-medium text-gray-900 mb-4">Advanced Filters</h4>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Category */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Category
+              </label>
+              <select
+                value={localFilters.category}
+                onChange={(e) => handleFilterChange("category", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All Categories</option>
+                
+                {/* Perfume Categories */}
+                <optgroup label="Perfumes & Fragrances">
+                  <option value="Eau de Parfum">Eau de Parfum</option>
+                  <option value="Eau de Toilette">Eau de Toilette</option>
+                  <option value="Eau de Cologne">Eau de Cologne</option>
+                  <option value="Parfum">Parfum</option>
+                  <option value="Body Spray">Body Spray</option>
+                  <option value="Gift Set">Gift Set</option>
+                  <option value="Miniature">Miniature</option>
+                  <option value="Travel Size">Travel Size</option>
+                </optgroup>
+
+                {/* Clothing Categories */}
+                <optgroup label="Clothing & Apparel">
+                  <option value="Men's Clothing">Men's Clothing</option>
+                  <option value="Women's Clothing">Women's Clothing</option>
+                  <option value="Kids' Clothing">Kids' Clothing</option>
+                  <option value="Unisex Clothing">Unisex Clothing</option>
+                  <option value="Activewear">Activewear</option>
+                  <option value="Formal Wear">Formal Wear</option>
+                  <option value="Casual Wear">Casual Wear</option>
+                  <option value="Outerwear">Outerwear</option>
+                  <option value="Underwear">Underwear</option>
+                  <option value="Sleepwear">Sleepwear</option>
+                  <option value="Swimwear">Swimwear</option>
+                  <option value="Accessories">Accessories</option>
+                </optgroup>
+              </select>
+            </div>
+
             {/* Subcategory */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -231,7 +296,7 @@ export default function AdvancedFilters({
             {/* Content Size */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Volume
+                Volume/Size
               </label>
               <select
                 value={localFilters.content}
@@ -253,55 +318,57 @@ export default function AdvancedFilters({
                 Rating
               </label>
               <div className="flex space-x-2">
-                <input
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.5"
+                <select
                   value={localFilters.minRating || ""}
-                  onChange={(e) => handleFilterChange("minRating", e.target.value ? parseFloat(e.target.value) : null)}
-                  placeholder="Min"
-                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  max="5"
-                  step="0.5"
+                  onChange={(e) => handleFilterChange("minRating", e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                >
+                  <option value="">Min</option>
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <option key={rating} value={rating}>
+                      {rating}+
+                    </option>
+                  ))}
+                </select>
+                <select
                   value={localFilters.maxRating || ""}
-                  onChange={(e) => handleFilterChange("maxRating", e.target.value ? parseFloat(e.target.value) : null)}
-                  placeholder="Max"
-                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
+                  onChange={(e) => handleFilterChange("maxRating", e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
+                >
+                  <option value="">Max</option>
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <option key={rating} value={rating}>
+                      {rating}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
             {/* Price Range */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Price Range (€)
+                Price Range
               </label>
               <div className="flex space-x-2">
                 <input
                   type="number"
-                  min="0"
-                  step="0.01"
-                  value={localFilters.minPrice || ""}
-                  onChange={(e) => handleFilterChange("minPrice", e.target.value ? parseFloat(e.target.value) : null)}
                   placeholder="Min"
-                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={localFilters.minPrice || ""}
+                  onChange={(e) => handleFilterChange("minPrice", e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 />
                 <input
                   type="number"
-                  min="0"
-                  step="0.01"
-                  value={localFilters.maxPrice || ""}
-                  onChange={(e) => handleFilterChange("maxPrice", e.target.value ? parseFloat(e.target.value) : null)}
                   placeholder="Max"
-                  className="w-1/2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  value={localFilters.maxPrice || ""}
+                  onChange={(e) => handleFilterChange("maxPrice", e.target.value)}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                 />
               </div>
             </div>
+
+
           </div>
 
           {/* Tags */}

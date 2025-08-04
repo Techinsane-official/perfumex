@@ -108,7 +108,7 @@ async function processProductRow(
   columnMapping: Record<string, string>,
   rowIndex: number,
   overwriteExisting: boolean = false,
-): Promise<{ success: boolean; error?: ImportError; warning?: ImportWarning }> {
+): Promise<{ success: boolean; error?: ImportError; warning?: ImportWarning; skipped?: boolean; duplicate?: boolean }> {
   try {
     // Map CSV columns to product fields
     const mappedData: Record<string, unknown> = {};
@@ -177,8 +177,8 @@ async function processProductRow(
         success: false,
         error: {
           row: rowIndex + 1,
-          field: error.errors[0].path.join("."),
-          message: error.errors[0].message,
+          field: (error as z.ZodError).errors[0].path.join("."),
+          message: (error as z.ZodError).errors[0].message,
           data: row,
         },
       };

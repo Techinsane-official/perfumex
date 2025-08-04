@@ -45,7 +45,7 @@ export interface UpdateImportHistoryParams {
 export async function createImportHistory(params: CreateImportHistoryParams): Promise<string> {
   const entry = await prisma.importHistory.create({
     data: {
-      filename: params.filename,
+      fileName: params.filename,
       fileType: params.fileType,
       totalRows: params.totalRows,
       successfulRows: 0,
@@ -109,7 +109,7 @@ export async function getImportHistory(
   return {
     entries: entries.map((entry) => ({
       id: entry.id,
-      filename: entry.filename,
+      filename: entry.fileName,
       fileType: entry.fileType as "csv" | "excel",
       totalRows: entry.totalRows,
       successfulRows: entry.successfulRows,
@@ -119,13 +119,13 @@ export async function getImportHistory(
       importStrategy: entry.importStrategy as "skip" | "overwrite" | "flag" | "error",
       importOnlyValid: entry.importOnlyValid,
       startedAt: entry.startedAt,
-      completedAt: entry.completedAt,
-      duration: entry.duration,
+      completedAt: entry.completedAt || new Date(),
+      duration: entry.duration || 0,
       status: entry.status as "completed" | "failed" | "cancelled",
       errors: entry.errors as string[],
       warnings: entry.warnings as string[],
       importedBy: entry.importedBy,
-      notes: entry.notes,
+      notes: entry.notes || undefined,
     })),
     total,
   };
@@ -140,7 +140,7 @@ export async function getImportHistoryById(id: string): Promise<ImportHistoryEnt
 
   return {
     id: entry.id,
-    filename: entry.filename,
+    filename: entry.fileName,
     fileType: entry.fileType as "csv" | "excel",
     totalRows: entry.totalRows,
     successfulRows: entry.successfulRows,
@@ -150,13 +150,13 @@ export async function getImportHistoryById(id: string): Promise<ImportHistoryEnt
     importStrategy: entry.importStrategy as "skip" | "overwrite" | "flag" | "error",
     importOnlyValid: entry.importOnlyValid,
     startedAt: entry.startedAt,
-    completedAt: entry.completedAt,
-    duration: entry.duration,
-    status: entry.status as "completed" | "failed" | "cancelled",
-    errors: entry.errors as string[],
-    warnings: entry.warnings as string[],
-    importedBy: entry.importedBy,
-    notes: entry.notes,
+          completedAt: entry.completedAt || new Date(),
+      duration: entry.duration || 0,
+      status: entry.status as "completed" | "failed" | "cancelled",
+      errors: entry.errors as string[],
+      warnings: entry.warnings as string[],
+      importedBy: entry.importedBy,
+      notes: entry.notes || undefined,
   };
 }
 
@@ -193,7 +193,7 @@ export async function getImportStatistics(): Promise<{
     averageSuccessRate,
     recentActivity: recentActivity.map((entry) => ({
       id: entry.id,
-      filename: entry.filename,
+      filename: entry.fileName,
       fileType: entry.fileType as "csv" | "excel",
       totalRows: entry.totalRows,
       successfulRows: entry.successfulRows,
@@ -203,13 +203,13 @@ export async function getImportStatistics(): Promise<{
       importStrategy: entry.importStrategy as "skip" | "overwrite" | "flag" | "error",
       importOnlyValid: entry.importOnlyValid,
       startedAt: entry.startedAt,
-      completedAt: entry.completedAt,
-      duration: entry.duration,
+      completedAt: entry.completedAt || new Date(),
+      duration: entry.duration || 0,
       status: entry.status as "completed" | "failed" | "cancelled",
       errors: entry.errors as string[],
       warnings: entry.warnings as string[],
       importedBy: entry.importedBy,
-      notes: entry.notes,
+      notes: entry.notes || undefined,
     })),
   };
 }

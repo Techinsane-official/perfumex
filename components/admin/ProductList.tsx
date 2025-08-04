@@ -126,7 +126,7 @@ export function ProductList({ products }: ProductListProps) {
   return (
     <div className="space-y-6">
       {/* Filters and Search */}
-      <div className="bg-gray-50 rounded-lg p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-4">
           {/* Search */}
           <div className="lg:col-span-2">
@@ -141,7 +141,7 @@ export function ProductList({ products }: ProductListProps) {
                 placeholder="Zoek op naam, EAN, of merk..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
               />
             </div>
           </div>
@@ -155,7 +155,7 @@ export function ProductList({ products }: ProductListProps) {
               id="brand"
               value={selectedBrand}
               onChange={(e) => setSelectedBrand(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
             >
               <option value="">Alle Merken</option>
               {brands.map((brand) => (
@@ -175,7 +175,7 @@ export function ProductList({ products }: ProductListProps) {
               id="content"
               value={selectedContent}
               onChange={(e) => setSelectedContent(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
             >
               <option value="">Alle Maten</option>
               {contentSizes.map((size) => (
@@ -195,7 +195,7 @@ export function ProductList({ products }: ProductListProps) {
               id="status"
               value={selectedStatus}
               onChange={(e) => setSelectedStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
             >
               <option value="">Alle Statussen</option>
               {statuses.map((status) => (
@@ -208,59 +208,71 @@ export function ProductList({ products }: ProductListProps) {
         </div>
 
         {/* Additional Filters */}
-        <div className="mt-4 flex flex-wrap gap-4 items-center">
-          {/* Availability Filter */}
-          <div>
-            <label htmlFor="availability" className="block text-sm font-medium text-gray-700 mb-2">
-              Beschikbaarheid
-            </label>
-            <select
-              id="availability"
-              value={availabilityFilter}
-              onChange={(e) => setAvailabilityFilter(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="all">Alle Producten</option>
-              <option value="available">Op Voorraad</option>
-              <option value="outOfStock">Uitverkocht</option>
-            </select>
-          </div>
-
-          {/* View Mode Toggle */}
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-700">Weergave:</span>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-md ${viewMode === "grid" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"}`}
-            >
-              <Grid3X3 className="h-4 w-4" />
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`p-2 rounded-md ${viewMode === "list" ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-600"}`}
-            >
-              <List className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* Column Toggles */}
-          <div className="flex items-center space-x-4">
-            <span className="text-sm font-medium text-gray-700">Kolommen:</span>
-            {Object.entries(visibleColumns).map(([column, visible]) => (
-              <label key={column} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={visible}
-                  onChange={() => toggleColumn(column as keyof typeof visibleColumns)}
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <span className="text-sm text-gray-700 capitalize">{column}</span>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            {/* Availability Filter */}
+            <div>
+              <label htmlFor="availability" className="block text-sm font-medium text-gray-700 mb-2">
+                Beschikbaarheid
               </label>
-            ))}
+              <select
+                id="availability"
+                value={availabilityFilter}
+                onChange={(e) => setAvailabilityFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+              >
+                <option value="all">Alle Producten</option>
+                <option value="available">Op Voorraad</option>
+                <option value="outOfStock">Uitverkocht</option>
+              </select>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-2">
+              <span className="text-sm font-medium text-gray-700">Weergave:</span>
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === "grid" 
+                    ? "bg-blue-100 text-blue-600 border border-blue-200" 
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <Grid3X3 className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`p-2 rounded-md transition-colors ${
+                  viewMode === "list" 
+                    ? "bg-blue-100 text-blue-600 border border-blue-200" 
+                    : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                }`}
+              >
+                <List className="h-4 w-4" />
+              </button>
+            </div>
+
+            {/* Column Toggles */}
+            <div className="flex items-center space-x-4">
+              <span className="text-sm font-medium text-gray-700">Kolommen:</span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(visibleColumns).map(([column, visible]) => (
+                  <label key={column} className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      checked={visible}
+                      onChange={() => toggleColumn(column as keyof typeof visibleColumns)}
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700 capitalize">{column}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Export Button */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center">
             <button
               onClick={() => setExportDialogOpen(true)}
               className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
@@ -272,8 +284,8 @@ export function ProductList({ products }: ProductListProps) {
         </div>
       </div>
 
-      {/* Results Summary */}
-      <div className="flex justify-between items-center">
+      {/* Results Summary and New Product Button */}
+      <div className="flex justify-between items-center bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <p className="text-sm text-gray-600">
           Toon {startIndex + 1}-{Math.min(endIndex, filteredProducts.length)} van{" "}
           {filteredProducts.length} producten
@@ -348,13 +360,14 @@ export function ProductList({ products }: ProductListProps) {
                   Bewerken
                 </Link>
                 <button className="flex-1 bg-gray-600 text-white text-xs py-1 px-2 rounded hover:bg-gray-700 transition-colors">
-                  Bekijken
+                  Verwijderen
                 </button>
               </div>
             </div>
           ))}
         </div>
       ) : (
+        // List view implementation
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -385,11 +398,6 @@ export function ProductList({ products }: ProductListProps) {
                 {visibleColumns.rating && (
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Rating
-                  </th>
-                )}
-                {visibleColumns.status && (
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Status
                   </th>
                 )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -432,21 +440,12 @@ export function ProductList({ products }: ProductListProps) {
                         {[...Array(5)].map((_, i) => (
                           <span
                             key={i}
-                            className={`text-sm ${i < product.rating ? "text-yellow-400" : "text-gray-300"}`}
+                            className={`text-xs ${i < product.rating ? "text-yellow-400" : "text-gray-300"}`}
                           >
                             ★
                           </span>
                         ))}
                       </div>
-                    </td>
-                  )}
-                  {visibleColumns.status && (
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`px-2 py-1 text-xs rounded-full ${getStatusColor(product.status)} text-white`}
-                      >
-                        {getStatusText(product.status)}
-                      </span>
                     </td>
                   )}
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -457,7 +456,9 @@ export function ProductList({ products }: ProductListProps) {
                       >
                         Bewerken
                       </Link>
-                      <button className="text-gray-600 hover:text-gray-900">Bekijken</button>
+                      <button className="text-red-600 hover:text-red-900">
+                        Verwijderen
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -469,44 +470,25 @@ export function ProductList({ products }: ProductListProps) {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex justify-between items-center bg-white rounded-lg shadow-sm border border-gray-200 p-4">
           <div className="flex items-center space-x-2">
             <button
               onClick={() => handlePageChange(currentPage - 1)}
               disabled={currentPage === 1}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <span className="text-sm text-gray-700">
+            <span className="text-sm text-gray-600">
               Pagina {currentPage} van {totalPages}
             </span>
             <button
               onClick={() => handlePageChange(currentPage + 1)}
               disabled={currentPage === totalPages}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
-          </div>
-
-          <div className="flex space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const page = i + 1;
-              return (
-                <button
-                  key={page}
-                  onClick={() => handlePageChange(page)}
-                  className={`px-3 py-2 text-sm font-medium rounded-md ${
-                    currentPage === page
-                      ? "bg-blue-600 text-white"
-                      : "text-gray-700 bg-white border border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  {page}
-                </button>
-              );
-            })}
           </div>
         </div>
       )}
@@ -515,13 +497,7 @@ export function ProductList({ products }: ProductListProps) {
       <ProductExportDialog
         isOpen={exportDialogOpen}
         onClose={() => setExportDialogOpen(false)}
-        currentFilters={{
-          search: searchTerm,
-          brand: selectedBrand,
-          content: selectedContent,
-          status: selectedStatus,
-          availability: availabilityFilter,
-        }}
+        products={filteredProducts}
       />
     </div>
   );

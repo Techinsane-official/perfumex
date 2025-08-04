@@ -68,7 +68,7 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overview" | "pricing" | "orders">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "pricing" | "orders" | "volume-discounts">("overview");
 
   useEffect(() => {
     if (params.id) {
@@ -235,6 +235,16 @@ export default function CustomerDetailPage() {
             }`}
           >
             Bestellingen ({customer._count.orders})
+          </button>
+          <button
+            onClick={() => setActiveTab("volume-discounts")}
+            className={`py-2 px-1 border-b-2 font-medium text-sm ${
+              activeTab === "volume-discounts"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+            }`}
+          >
+            Volume Discounts
           </button>
         </nav>
       </div>
@@ -487,6 +497,42 @@ export default function CustomerDetailPage() {
             ) : (
               <p className="text-gray-500 text-center py-4">Geen bestellingen gevonden</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {activeTab === "volume-discounts" && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+          <div className="p-6 border-b border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Volume Discounts</h2>
+                <p className="text-sm text-gray-600">Manage tiered pricing based on order quantities</p>
+              </div>
+              <button
+                onClick={() => router.push(`/admin/customers/${customer.id}/volume-discounts`)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Manage Discounts
+              </button>
+            </div>
+          </div>
+          <div className="p-6">
+            <div className="text-center py-8">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                <Settings className="w-6 h-6 text-blue-600" />
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Volume Discounts</h3>
+              <p className="text-gray-600 mb-4">
+                Configure tiered pricing based on order quantities for this customer.
+              </p>
+              <button
+                onClick={() => router.push(`/admin/customers/${customer.id}/volume-discounts`)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Configure Volume Discounts
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -2,9 +2,18 @@
 export const dynamic = "force-dynamic";
 
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import { ProductList } from "@/components/admin/ProductList";
 
 export default async function AdminProductsPage() {
+  const session = await auth();
+
+  if (!session || (session.user as { role?: string })?.role !== "ADMIN") {
+    redirect("/login/admin");
+  }
+
   try {
     const products = await prisma.product.findMany({
       orderBy: { createdAt: "desc" },
@@ -50,10 +59,16 @@ export default async function AdminProductsPage() {
     }));
 
     return (
-      <main className="p-4">
-        <h1 className="text-2xl font-bold mb-4">Productbeheer</h1>
-        <ProductList products={transformedProducts} />
-      </main>
+      <DashboardLayout user={session.user}>
+        <div className="space-y-6">
+          {/* Page Header with proper spacing */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
+            <p className="text-gray-600 mt-2">Manage your product catalog</p>
+          </div>
+          <ProductList products={transformedProducts} />
+        </div>
+      </DashboardLayout>
     );
   } catch (error) {
     const err = error as Error;
@@ -64,10 +79,19 @@ export default async function AdminProductsPage() {
     });
 
     return (
-      <main className="p-4 text-red-600">
-        <h1 className="text-xl font-bold mb-4">❌ Server-side fout in AdminProductsPage</h1>
-        <pre>{err.message}</pre>
-      </main>
+      <DashboardLayout user={session.user}>
+        <div className="space-y-6">
+          {/* Page Header with proper spacing */}
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
+            <p className="text-gray-600 mt-2">Manage your product catalog</p>
+          </div>
+          <div className="text-red-600">
+            <h1 className="text-xl font-bold mb-4">❌ Server-side fout in AdminProductsPage</h1>
+            <pre>{err.message}</pre>
+          </div>
+        </div>
+      </DashboardLayout>
     );
   }
 }

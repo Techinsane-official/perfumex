@@ -17,6 +17,8 @@ import {
   LogOut,
   User,
   Bell,
+  Gift,
+  CreditCard,
 } from "lucide-react";
 
 interface DashboardLayoutProps {
@@ -29,9 +31,11 @@ interface DashboardLayoutProps {
 
 const navigation = [
   { name: "Dashboard", href: "/admin/dashboard", icon: Home },
+  { name: "Point of Sale", href: "/admin/pos", icon: CreditCard },
   { name: "Products", href: "/admin/products", icon: Package },
   { name: "Orders", href: "/admin/orders", icon: ShoppingCart },
   { name: "Customers", href: "/admin/customers", icon: Users },
+  { name: "Promotions", href: "/admin/promotions", icon: Gift },
   { name: "Reports", href: "/admin/reports", icon: BarChart3 },
   { name: "Settings", href: "/admin/settings", icon: Settings },
 ];
@@ -46,7 +50,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
   }, [pathname]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 flex">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div
@@ -57,7 +61,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0 flex flex-col ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -90,10 +94,10 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
         </div>
 
         {/* Navigation */}
-        <nav className="mt-6 px-3">
+        <nav className="flex-1 mt-6 px-3">
           <div className="space-y-1">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
               return (
                 <Link
                   key={item.name}
@@ -117,7 +121,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
         </nav>
 
         {/* Logout */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+        <div className="p-4 border-t border-gray-200">
           <button
             onClick={() => signOut()}
             className="flex items-center w-full px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 rounded-md transition-colors"
@@ -129,7 +133,7 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
       </div>
 
       {/* Main content */}
-      <div className="lg:pl-64">
+      <div className="flex-1">
         {/* Top bar */}
         <div className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-200">
           <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
@@ -162,8 +166,47 @@ export default function DashboardLayout({ children, user }: DashboardLayoutProps
         </div>
 
         {/* Page content */}
-        <main className="p-4 sm:p-6 lg:p-8">
-          <div className="max-w-7xl mx-auto">
+        <main className="p-4 sm:p-6 lg:p-0 min-h-screen">
+          <div className="w-full">
+            {/* Breadcrumb Navigation */}
+            {pathname !== "/admin/dashboard" && (
+              <nav className="mb-6">
+                <ol className="flex items-center space-x-2 text-sm text-gray-500">
+                  <li>
+                    <Link href="/admin/dashboard" className="hover:text-gray-700">
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li className="flex items-center">
+                    <span className="mx-2">/</span>
+                  </li>
+                  <li className="text-gray-900">
+                    {(() => {
+                      const pathParts = pathname.split('/').filter(Boolean);
+                      if (pathParts.length >= 3) {
+                        const section = pathParts[2];
+                        // Map route names to display names
+                        const routeNames: { [key: string]: string } = {
+                          'products': 'Products',
+                          'orders': 'Orders',
+                          'customers': 'Customers',
+                          'users': 'Users',
+                          'promotions': 'Promotions',
+                          'reports': 'Reports',
+                          'settings': 'Settings',
+                          'pos': 'Point of Sale',
+                          'audit-logs': 'Audit Logs',
+                          'picklists': 'Picklists',
+                          'reviews': 'Reviews',
+                        };
+                        return routeNames[section] || section.charAt(0).toUpperCase() + section.slice(1);
+                      }
+                      return 'Page';
+                    })()}
+                  </li>
+                </ol>
+              </nav>
+            )}
             {children}
           </div>
         </main>

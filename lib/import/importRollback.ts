@@ -69,7 +69,7 @@ export class ImportRollback {
         importId: this.importId,
         backupData: JSON.stringify(importedProducts),
         createdAt: new Date(),
-        description: `Backup before rollback of import ${this.importId}`,
+        backupData: JSON.stringify(backupData),
       },
     });
 
@@ -169,7 +169,7 @@ export class ImportRollback {
       where: {
         importSessionId: this.importId,
         // Add conditions for failed products (e.g., validation errors)
-        OR: [{ name: null }, { ean: null }, { purchasePrice: null }],
+        OR: [{ name: "" }, { ean: "" }, { purchasePrice: 0 }],
       },
     });
 
@@ -224,10 +224,10 @@ export class ImportRollback {
 
         case "failed_only":
           const failedCount = await prisma.product.count({
-            where: {
-              importSessionId: this.importId,
-              OR: [{ name: null }, { ean: null }, { purchasePrice: null }],
-            },
+                  where: {
+        importSessionId: this.importId,
+        OR: [{ name: "" }, { ean: "" }, { purchasePrice: 0 }],
+      },
           });
           productsToRollback = failedCount;
           break;

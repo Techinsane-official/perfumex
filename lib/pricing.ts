@@ -64,7 +64,7 @@ export async function calculateProductPrice(
 
   // Check for product-specific price override
   const productPriceOverride = customer.customerPrices.find(
-    (cp: { productId: string; price: number }) => cp.productId === productId,
+    (cp) => cp.productId === productId,
   );
 
   if (productPriceOverride) {
@@ -77,7 +77,7 @@ export async function calculateProductPrice(
     // Check for category-specific margin override
     if (product.category) {
       const categoryMargin = customer.customerMargins.find(
-        (cm: { category: string; margin: number }) => cm.category === product.category,
+        (cm) => cm.category === product.category,
       );
       if (categoryMargin) {
         marginPercentage = Number(categoryMargin.margin);
@@ -91,12 +91,34 @@ export async function calculateProductPrice(
     // Apply brand-specific discount
     if (product.brand) {
       const brandDiscount = customer.customerDiscounts.find(
-        (cd: { brand: string; discount: number }) => cd.brand === product.brand,
+        (cd) => cd.brand === product.brand,
       );
       if (brandDiscount) {
         discountAmount = finalPrice * (Number(brandDiscount.discount) / 100);
         finalPrice -= discountAmount;
       }
+    }
+
+    // Apply active promotions
+    const activePromotions = await prisma.promotion.findMany({
+      where: {
+        isActive: true,
+        startDate: { lte: new Date() },
+        endDate: { gte: new Date() },
+        promotionCustomers: {
+          some: {
+            customerId: customerId,
+          },
+        },
+      },
+    });
+
+    if (activePromotions.length > 0) {
+      // Apply the highest discount promotion
+      const highestDiscount = Math.max(...activePromotions.map(p => Number(p.discount)));
+      const promotionDiscount = finalPrice * (highestDiscount / 100);
+      discountAmount += promotionDiscount;
+      finalPrice -= promotionDiscount;
     }
   }
 
@@ -126,19 +148,39 @@ export async function calculateProductPrice(
 }
 
 /**
- * Calculate quantity-based discount
+ * Calculate quantity-based discount using volume discounts
  */
 async function calculateQuantityDiscount(
   customerId: string,
   productId: string,
   quantity: number,
 ): Promise<number> {
-  // This is a simplified implementation
-  // In a real system, you might have tiered pricing rules
-  if (quantity >= 100) return 10; // 10% discount for 100+ items
-  if (quantity >= 50) return 5; // 5% discount for 50+ items
-  if (quantity >= 20) return 2; // 2% discount for 20+ items
-  return 0;
+  try {
+    // Get active volume discounts for this customer
+    const volumeDiscounts = await prisma.volumeDiscount.findMany({
+      where: {
+        customerId,
+        isActive: true,
+      },
+      orderBy: { minQuantity: "asc" },
+    });
+
+    // Find the applicable discount based on quantity
+    for (const discount of volumeDiscounts) {
+      if (quantity >= discount.minQuantity) {
+        // Check if there's a max quantity limit
+        if (discount.maxQuantity && quantity > discount.maxQuantity) {
+          continue; // Skip this discount if quantity exceeds max
+        }
+        return Number(discount.discountPercentage);
+      }
+    }
+
+    return 0; // No applicable discount found
+  } catch (error) {
+    console.error("Error calculating quantity discount:", error);
+    return 0;
+  }
 }
 
 /**

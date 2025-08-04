@@ -61,9 +61,9 @@ class Logger {
     this.info(`User action: ${action}`, {
       userId,
       action,
-      entity,
-      entityId,
-      details,
+      entity: entity || undefined,
+      entityId: entityId || undefined,
+      details: details || undefined,
     });
   }
 
@@ -76,8 +76,8 @@ class Logger {
     this.info(`Order event: ${event}`, {
       orderId,
       event,
-      userId,
-      details,
+      userId: userId || undefined,
+      details: details || undefined,
     });
   }
 
@@ -96,13 +96,14 @@ class Logger {
     severity: "low" | "medium" | "high" = "medium",
   ) {
     const level = severity === "high" ? "error" : severity === "medium" ? "warn" : "info";
-    this[level](`Security event: ${event}`, {
+    const error = new Error(`Security event: ${event}`);
+    this[level](`Security event: ${event}`, error, {
       event,
       url: request.url,
       method: request.method,
       userAgent: request.headers.get("user-agent"),
       ip: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip"),
-      details,
+      details: details || undefined,
     });
   }
 
@@ -125,9 +126,9 @@ class Logger {
   // Performance monitoring
   logPerformance(operation: string, duration: number, context?: LogContext) {
     if (duration > 5000) {
-      this.error(`Slow operation: ${operation} took ${duration}ms`, undefined, context);
+      this.error(`Slow operation: ${operation} took ${duration}ms`, context);
     } else if (duration > 1000) {
-      this.warn(`Slow operation: ${operation} took ${duration}ms`, undefined, context);
+      this.warn(`Slow operation: ${operation} took ${duration}ms`, context);
     } else {
       this.debug(`Operation: ${operation} took ${duration}ms`, context);
     }

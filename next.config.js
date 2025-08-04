@@ -12,12 +12,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Reduce memory usage
-  experimental: {
-    memoryBasedWorkers: false,
-  },
   // Optimize for production
-  swcMinify: true,
   compress: true,
   // Add security headers
   async headers() {

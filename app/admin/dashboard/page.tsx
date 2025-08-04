@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getAuditLogs } from "@/lib/audit";
 import { serializeDate } from "@/lib/utils";
+import DashboardLayout from "@/components/layout/DashboardLayout";
 import DashboardClient from "./DashboardClient";
 import { Prisma } from "@prisma/client";
 
@@ -88,5 +89,9 @@ export default async function AdminDashboardPage() {
     })),
   });
 
-  return <DashboardClient session={session} recentLogs={serializedLogs} />;
+  return (
+    <DashboardLayout user={session.user}>
+      <DashboardClient session={session} recentLogs={serializedLogs} />
+    </DashboardLayout>
+  );
 }
