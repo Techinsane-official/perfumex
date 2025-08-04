@@ -93,8 +93,8 @@ export async function POST(request: NextRequest) {
     }
 
     const results: ImportResult[] = [];
-    const successCount = 0;
-    const errorCount = 0;
+    let successCount = 0;
+    let errorCount = 0;
 
     // Process each row
     for (let i = 0; i < rows.length; i++) {
