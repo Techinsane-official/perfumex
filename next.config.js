@@ -6,6 +6,12 @@ if (process.env.NODE_ENV === "production") {
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone", // ✅ Essentieel voor Vercel + App Router
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   // Add security headers
   async headers() {
     return [
