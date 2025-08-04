@@ -5,7 +5,8 @@ if (process.env.NODE_ENV === "production") {
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone", // ✅ Essentieel voor Vercel + App Router
+  // Disable standalone output for local development (Windows symlink issues)
+  // Standalone output is only needed for Vercel deployment
   typescript: {
     ignoreBuildErrors: true,
   },
