@@ -1,23 +1,19 @@
+import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
+
+// Load environment variables
+config({ path: ".env.local" });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Use anon key for testing (same as client)
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Storage bucket configuration
-export const STORAGE_BUCKET = "product-images";
-
-// Image upload configuration
-export const IMAGE_CONFIG = {
-  maxSize: 5 * 1024 * 1024, // 5MB
-  allowedTypes: ["image/jpeg", "image/png", "image/webp"],
-  maxImages: 5,
-  quality: 0.8, // For image optimization
-};
+const STORAGE_BUCKET = "product-images";
 
 // Generate unique filename for upload
-export function generateImageFilename(originalName: string, productId: string): string {
+function generateImageFilename(originalName: string, productId: string): string {
   const timestamp = Date.now();
   const randomId = Math.random().toString(36).substring(2, 15);
   const extension = originalName.split(".").pop()?.toLowerCase() || "jpg";
@@ -25,17 +21,20 @@ export function generateImageFilename(originalName: string, productId: string): 
 }
 
 // Validate image file
-export function validateImageFile(file: File): { isValid: boolean; error?: string } {
+function validateImageFile(file: File): { isValid: boolean; error?: string } {
+  const maxSize = 5 * 1024 * 1024; // 5MB
+  const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+
   // Check file size
-  if (file.size > IMAGE_CONFIG.maxSize) {
+  if (file.size > maxSize) {
     return {
       isValid: false,
-      error: `Bestand is te groot. Maximum: ${(IMAGE_CONFIG.maxSize / 1024 / 1024).toFixed(1)}MB`,
+      error: `Bestand is te groot. Maximum: ${(maxSize / 1024 / 1024).toFixed(1)}MB`,
     };
   }
 
   // Check file type
-  if (!IMAGE_CONFIG.allowedTypes.includes(file.type)) {
+  if (!allowedTypes.includes(file.type)) {
     return {
       isValid: false,
       error: "Alleen JPG, PNG en WebP bestanden zijn toegestaan",
@@ -45,25 +44,8 @@ export function validateImageFile(file: File): { isValid: boolean; error?: strin
   return { isValid: true };
 }
 
-// Check if storage bucket exists and is accessible
-export async function checkStorageBucket(): Promise<{ exists: boolean; error?: string }> {
-  try {
-    const { data, error } = await supabase.storage.getBucket(STORAGE_BUCKET);
-    
-    if (error) {
-      console.error("Storage bucket check error:", error);
-      return { exists: false, error: error.message };
-    }
-    
-    return { exists: true };
-  } catch (error) {
-    console.error("Storage bucket check failed:", error);
-    return { exists: false, error: "Kan opslag bucket niet controleren" };
-  }
-}
-
 // Upload image to Supabase Storage
-export async function uploadImage(
+async function uploadImage(
   file: File,
   productId: string,
 ): Promise<{ url: string; error?: string }> {
@@ -71,7 +53,7 @@ export async function uploadImage(
     // Validate file
     const validation = validateImageFile(file);
     if (!validation.isValid) {
-      return { url: "", error: validation.error };
+      return { url: "", error: validation.error || "Validatie fout" };
     }
 
     // Check if Supabase is properly configured
@@ -104,21 +86,19 @@ export async function uploadImage(
       console.error("Upload error details:", {
         error,
         message: error.message,
-        statusCode: error.statusCode,
-        details: error.details,
         name: error.name
       });
       
       // Provide more specific error messages
       if (error.message?.includes("bucket") || error.message?.includes("not found")) {
         return { url: "", error: "Opslag bucket niet gevonden. Neem contact op met de beheerder." };
-      } else if (error.message?.includes("permission") || error.statusCode === 403) {
+      } else if (error.message?.includes("permission") || error.message?.includes("403")) {
         return { url: "", error: "Geen toestemming voor upload. Controleer uw rechten." };
-      } else if (error.message?.includes("network") || error.statusCode === 0) {
+      } else if (error.message?.includes("network") || error.message?.includes("fetch")) {
         return { url: "", error: "Netwerkfout. Controleer uw internetverbinding." };
-      } else if (error.message?.includes("size") || error.statusCode === 413) {
+      } else if (error.message?.includes("size") || error.message?.includes("413")) {
         return { url: "", error: "Bestand is te groot voor upload." };
-      } else if (error.message?.includes("type") || error.statusCode === 415) {
+      } else if (error.message?.includes("type") || error.message?.includes("415")) {
         return { url: "", error: "Bestandstype niet ondersteund. Alleen JPG, PNG en WebP toegestaan." };
       } else {
         return { url: "", error: `Upload mislukt: ${error.message || "Onbekende fout"}` };
@@ -154,24 +134,54 @@ export async function uploadImage(
   }
 }
 
-// Delete image from Supabase Storage
-export async function deleteImage(imageUrl: string): Promise<{ success: boolean; error?: string }> {
+async function testUpload() {
   try {
-    // Extract file path from URL
-    const url = new URL(imageUrl);
-    const pathParts = url.pathname.split("/");
-    const filePath = pathParts.slice(-2).join("/"); // Get productId/filename
+    console.log("🧪 Testing image upload functionality...");
+    console.log("URL:", supabaseUrl);
+    console.log("Anon Key:", supabaseAnonKey ? "Present" : "Missing");
 
-    const { error } = await supabase.storage.from(STORAGE_BUCKET).remove([filePath]);
+    // Create a test file (1x1 pixel PNG)
+    const testImageData = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
+    
+    // Convert base64 to blob
+    const response = await fetch(testImageData);
+    const blob = await response.blob();
+    
+    // Create a File object
+    const testFile = new File([blob], "test-image.png", { type: "image/png" });
 
-    if (error) {
-      console.error("Delete error:", error);
-      return { success: false, error: "Verwijderen mislukt." };
+    console.log("📁 Test file created:", {
+      name: testFile.name,
+      size: testFile.size,
+      type: testFile.type
+    });
+
+    // Test upload
+    const result = await uploadImage(testFile, "test-product-123");
+
+    if (result.error) {
+      console.error("❌ Upload failed:", result.error);
+      return;
     }
 
-    return { success: true };
+    console.log("✅ Upload successful!");
+    console.log("🔗 URL:", result.url);
+
+    // Test if the URL is accessible
+    try {
+      const imageResponse = await fetch(result.url);
+      if (imageResponse.ok) {
+        console.log("✅ Image URL is accessible");
+      } else {
+        console.log("⚠️ Image URL returned status:", imageResponse.status);
+      }
+    } catch (error) {
+      console.log("⚠️ Could not verify image URL accessibility:", error);
+    }
+
   } catch (error) {
-    console.error("Delete error:", error);
-    return { success: false, error: "Verwijderen mislukt." };
+    console.error("❌ Test failed:", error);
   }
 }
+
+testUpload(); 
