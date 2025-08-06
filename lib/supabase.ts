@@ -5,6 +5,25 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Function to get authenticated client with session
+export async function getAuthenticatedClient() {
+  const client = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+    }
+  });
+  
+  // Get current session
+  const { data: { session } } = await client.auth.getSession();
+  
+  if (!session) {
+    throw new Error("User not authenticated");
+  }
+  
+  return client;
+}
+
 // Storage bucket configuration
 export const STORAGE_BUCKET = "product-images";
 
@@ -94,8 +113,11 @@ export async function uploadImage(
       supabaseKey: supabaseAnonKey ? "Present" : "Missing"
     });
 
-    // Upload to Supabase Storage
-    const { data, error } = await supabase.storage.from(STORAGE_BUCKET).upload(filePath, file, {
+    // Get authenticated client for upload
+    const authenticatedClient = await getAuthenticatedClient();
+    
+    // Upload to Supabase Storage with authenticated client
+    const { data, error } = await authenticatedClient.storage.from(STORAGE_BUCKET).upload(filePath, file, {
       cacheControl: "3600",
       upsert: false,
     });

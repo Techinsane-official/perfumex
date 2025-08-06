@@ -14,6 +14,18 @@ const nextConfig = {
   },
   // Optimize for production
   compress: true,
+  // Configure image domains for Supabase storage
+  images: {
+    domains: ['mopmajhpeeahpqumpqax.supabase.co'],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'mopmajhpeeahpqumpqax.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
+  },
   // Add security headers
   async headers() {
     return [

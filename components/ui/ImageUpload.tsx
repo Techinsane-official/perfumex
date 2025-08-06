@@ -259,6 +259,7 @@ export default function ImageUpload({
                     const target = e.target as HTMLImageElement;
                     target.src = "/placeholder-image.png";
                   }}
+                  unoptimized={true}
                 />
               </div>
               <button
