@@ -1,80 +1,70 @@
 import { config } from "dotenv";
 import { createClient } from "@supabase/supabase-js";
 
-// Load environment variables
+// Load environment variables from .env.local
 config({ path: ".env.local" });
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-// Use service role key for admin operations
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error("Missing Supabase configuration.");
+  process.exit(1);
+}
 
-const STORAGE_BUCKET = "product-images";
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function fixStoragePolicies() {
   try {
-    console.log("🔧 Fixing Supabase storage RLS policies...");
-    console.log("URL:", supabaseUrl);
-    console.log("Service Key:", supabaseServiceKey ? "Present" : "Missing");
+    console.log("🔧 Setting up storage policies...");
 
-    // First, let's check the current bucket status
-    const { data: buckets, error: bucketsError } = await supabaseAdmin.storage.listBuckets();
+    // First, let's check if we can access the bucket
+    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets();
     
     if (bucketsError) {
-      console.error("❌ Error listing buckets:", bucketsError);
+      console.error("Error listing buckets:", bucketsError);
       return;
     }
 
-    const bucket = buckets?.find(b => b.name === STORAGE_BUCKET);
-    if (!bucket) {
-      console.error("❌ Bucket not found:", STORAGE_BUCKET);
-      return;
-    }
+    console.log("Available buckets:", buckets?.map(b => b.name));
 
-    console.log("✅ Bucket found:", bucket.name);
-    console.log("📊 Bucket public:", bucket.public);
-
-    // Update bucket to be public
-    const { error: updateError } = await supabaseAdmin.storage.updateBucket(STORAGE_BUCKET, {
-      public: true,
-      allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'],
-      fileSizeLimit: 5242880, // 5MB
-    });
-
-    if (updateError) {
-      console.error("❌ Error updating bucket:", updateError);
-    } else {
-      console.log("✅ Bucket updated to public");
-    }
-
-    // Now we need to disable RLS on the storage.objects table
-    // This is typically done through the Supabase dashboard or SQL
-    console.log("📝 Manual steps required:");
-    console.log("1. Go to your Supabase dashboard");
+    // Try to disable RLS temporarily for testing
+    console.log("Attempting to disable RLS for product-images bucket...");
+    
+    // Note: The client library doesn't support modifying RLS policies directly
+    // We need to use the dashboard or REST API
+    
+    console.log("\n📋 Manual Steps Required:");
+    console.log("1. Go to your Supabase dashboard:");
+    console.log("   https://supabase.com/dashboard/project/oalzpzuasassmdxmfyme");
     console.log("2. Navigate to Storage > Policies");
-    console.log("3. For the 'product-images' bucket:");
-    console.log("   - Add a policy for SELECT (public read access)");
-    console.log("   - Add a policy for INSERT (public upload access)");
-    console.log("4. Or disable RLS entirely for this bucket");
+    console.log("3. Find the 'product-images' bucket");
+    console.log("4. Toggle off RLS temporarily");
+    console.log("5. Test your upload");
+    console.log("6. Re-enable RLS and add these policies:");
+    console.log("   - SELECT policy for 'public' role");
+    console.log("   - INSERT policy for 'authenticated' role");
+    console.log("   - DELETE policy for 'authenticated' role");
 
-    console.log("\n🔧 Alternative: Run this SQL in the SQL editor:");
-    console.log(`
--- Disable RLS on storage.objects for the product-images bucket
-ALTER TABLE storage.objects DISABLE ROW LEVEL SECURITY;
+    // Test if we can upload with current settings
+    console.log("\n🧪 Testing current upload capability...");
+    
+    const testFile = new File(["test"], "test.txt", { type: "text/plain" });
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from("product-images")
+      .upload(`test-${Date.now()}.txt`, testFile);
 
--- Or create specific policies:
-CREATE POLICY "Public Access" ON storage.objects
-FOR ALL USING (bucket_id = 'product-images');
-
-CREATE POLICY "Public Upload" ON storage.objects
-FOR INSERT WITH CHECK (bucket_id = 'product-images');
-    `);
-
-    console.log("🎉 Storage policy fix instructions completed!");
+    if (uploadError) {
+      console.error("❌ Upload test failed:", uploadError.message);
+      console.log("This confirms RLS is blocking uploads.");
+    } else {
+      console.log("✅ Upload test successful!");
+      // Clean up test file
+      await supabase.storage.from("product-images").remove([uploadData.path]);
+    }
 
   } catch (error) {
-    console.error("❌ Setup failed:", error);
+    console.error("Error:", error);
   }
 }
 
