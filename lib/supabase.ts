@@ -113,11 +113,8 @@ export async function uploadImage(
       supabaseKey: supabaseAnonKey ? "Present" : "Missing"
     });
 
-    // Get authenticated client for upload
-    const authenticatedClient = await getAuthenticatedClient();
-    
-    // Upload to Supabase Storage with authenticated client
-    const { data, error } = await authenticatedClient.storage.from(STORAGE_BUCKET).upload(filePath, file, {
+    // Upload to Supabase Storage with regular client
+    const { data, error } = await supabase.storage.from(STORAGE_BUCKET).upload(filePath, file, {
       cacheControl: "3600",
       upsert: false,
     });
