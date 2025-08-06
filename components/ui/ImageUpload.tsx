@@ -23,6 +23,7 @@ export default function ImageUpload({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+  const [failedUploads, setFailedUploads] = useState<{ file: File; error: string }[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Generate temporary product ID for new products
@@ -40,6 +41,7 @@ export default function ImageUpload({
 
     setIsUploading(true);
     setUploadErrors([]);
+    setFailedUploads([]);
     const newImages: string[] = [];
     const currentProductId = getProductId();
 
@@ -52,6 +54,7 @@ export default function ImageUpload({
       const validation = validateImageFile(file);
       if (!validation.isValid) {
         setUploadErrors((prev) => [...prev, `${file.name}: ${validation.error}`]);
+        setFailedUploads((prev) => [...prev, { file, error: validation.error || "Validatie fout" }]);
         continue;
       }
 
@@ -64,17 +67,50 @@ export default function ImageUpload({
 
         if (result.error) {
           setUploadErrors((prev) => [...prev, `${file.name}: ${result.error}`]);
+          setFailedUploads((prev) => [...prev, { file, error: result.error || "Upload fout" }]);
         } else {
           newImages.push(result.url);
           setUploadProgress((prev) => ({ ...prev, [file.name]: 100 }));
         }
       } catch (error) {
         console.error("Error processing file:", error);
-        setUploadErrors((prev) => [...prev, `${file.name}: Upload mislukt`]);
+        const errorMessage = error instanceof Error ? error.message : "Upload mislukt";
+        setUploadErrors((prev) => [...prev, `${file.name}: ${errorMessage}`]);
+        setFailedUploads((prev) => [...prev, { file, error: errorMessage }]);
       }
     }
 
     onImagesChange([...images, ...newImages]);
+    setIsUploading(false);
+    setUploadProgress({});
+  };
+
+  const retryFailedUpload = async (failedUpload: { file: File; error: string }) => {
+    setIsUploading(true);
+    setUploadErrors((prev) => prev.filter(error => !error.includes(failedUpload.file.name)));
+    setFailedUploads((prev) => prev.filter(fu => fu.file !== failedUpload.file));
+    
+    const currentProductId = getProductId();
+
+    try {
+      setUploadProgress((prev) => ({ ...prev, [failedUpload.file.name]: 0 }));
+      
+      const result = await uploadImage(failedUpload.file, currentProductId);
+      
+      if (result.error) {
+        setUploadErrors((prev) => [...prev, `${failedUpload.file.name}: ${result.error}`]);
+        setFailedUploads((prev) => [...prev, { file: failedUpload.file, error: result.error || "Upload fout" }]);
+      } else {
+        onImagesChange([...images, result.url]);
+        setUploadProgress((prev) => ({ ...prev, [failedUpload.file.name]: 100 }));
+      }
+    } catch (error) {
+      console.error("Retry upload error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Upload mislukt";
+      setUploadErrors((prev) => [...prev, `${failedUpload.file.name}: ${errorMessage}`]);
+      setFailedUploads((prev) => [...prev, { file: failedUpload.file, error: errorMessage }]);
+    }
+    
     setIsUploading(false);
     setUploadProgress({});
   };
@@ -180,6 +216,27 @@ export default function ImageUpload({
           <ul className="text-sm text-red-700 space-y-1">
             {uploadErrors.map((error, index) => (
               <li key={index}>• {error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Failed Uploads */}
+      {failedUploads.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h4 className="text-sm font-medium text-yellow-800 mb-2">Mislukte Uploads:</h4>
+          <ul className="text-sm text-yellow-700 space-y-1">
+            {failedUploads.map((failedUpload, index) => (
+              <li key={index} className="flex items-center justify-between">
+                <span>{failedUpload.file.name}</span>
+                <button
+                  type="button"
+                  onClick={() => retryFailedUpload(failedUpload)}
+                  className="text-yellow-600 hover:text-yellow-500 text-xs font-medium"
+                >
+                  Opnieuw proberen
+                </button>
+              </li>
             ))}
           </ul>
         </div>
