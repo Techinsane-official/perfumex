@@ -829,7 +829,6 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                   images={formData.afbeeldingen}
                   onImagesChange={(images: string[]) => handleInputChange("afbeeldingen", images)}
                   maxImages={5}
-                  productId="temp-new-product" // Temporary ID for new products
                 />
                 {errors.afbeeldingen && (
                   <p className="mt-1 text-sm text-red-600">{errors.afbeeldingen}</p>
