@@ -39,9 +39,7 @@ const productSchema = z.object({
     .min(1, "Voorraad is verplicht")
     .regex(/^\d+$/, "Alleen positieve gehele getallen toegestaan")
     .refine((val) => parseInt(val) >= 0, "Voorraad mag niet negatief zijn"),
-  status: z.enum(["CONCEPT", "ACTIEF", "NIET_BESCHIKBAAR", "VERVALLEN"], {
-    required_error: "Status is verplicht",
-  }),
+  status: z.enum(["CONCEPT", "ACTIEF", "NIET_BESCHIKBAAR", "VERVALLEN"]),
   maxOrderQuantity: z.string().optional(),
   starRating: z.string().optional(),
   category: z.string().optional(),
