@@ -137,6 +137,13 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
       console.log("✅ Server action completed successfully");
     } catch (error) {
       console.error("❌ Error in handleSubmit:", error);
+      
+      // Check if this is a redirect (which is not an error)
+      if (error instanceof Error && error.message.includes("NEXT_REDIRECT")) {
+        console.log("✅ Redirect detected, not showing error");
+        return; // Don't show error for redirects
+      }
+      
       if (error instanceof z.ZodError) {
         console.log("📋 Zod validation error:", error.issues);
         const fieldErrors: Record<string, string> = {};
