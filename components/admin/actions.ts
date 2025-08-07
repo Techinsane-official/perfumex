@@ -217,6 +217,13 @@ export async function createProduct(formData: FormData) {
       );
     }
   } catch (error: unknown) {
+    // Check if this is a redirect (which is not an error)
+    if ((error as Record<string, unknown>)?.digest?.toString().startsWith("NEXT_REDIRECT")) {
+      // This is a successful redirect, not an error
+      console.log("✅ Redirect succesvol uitgevoerd");
+      throw error; // Re-throw the redirect
+    }
+
     // Outer catch voor onverwachte fouten
     console.error("🛑 Onverwachte fout in createProduct:", error);
     console.error("📋 Stack trace:", error?.stack || "Geen stack trace beschikbaar");
