@@ -131,11 +131,13 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            fieldErrors[err.path[0] as string] = err.message;
-          }
-        });
+        if (error.errors && Array.isArray(error.errors)) {
+          error.errors.forEach((err) => {
+            if (err.path[0]) {
+              fieldErrors[err.path[0] as string] = err.message;
+            }
+          });
+        }
         setErrors(fieldErrors);
       } else if (error instanceof Error && error.message.includes("EAN code")) {
         setErrors((prev) => ({ ...prev, ean: error.message }));
@@ -194,8 +196,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                   id="naam"
                   value={formData.naam}
                   onChange={(e) => handleInputChange("naam", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.naam ? "border-red-500" : "border-gray-300"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                    errors.naam ? "border-red-500" : "border-gray-400"
                   }`}
                   placeholder="Bijv. N°5 Eau de Parfum, Sauvage Eau de Toilette"
                   maxLength={100}
@@ -216,8 +218,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                   id="status"
                   value={formData.status}
                   onChange={(e) => handleInputChange("status", e.target.value)}
-                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    errors.status ? "border-red-500" : "border-gray-300"
+                  className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                    errors.status ? "border-red-500" : "border-gray-400"
                   }`}
                 >
                   <option value="CONCEPT">Concept</option>
@@ -238,8 +240,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                     id="inhoud"
                     value={formData.inhoud}
                     onChange={(e) => handleInputChange("inhoud", e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.inhoud ? "border-red-500" : "border-gray-300"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      errors.inhoud ? "border-red-500" : "border-gray-400"
                     }`}
                   >
                     <option value="">Selecteer inhoud</option>
@@ -270,7 +272,7 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                     <input
                       type="text"
                       placeholder="Bijv. 90ml, 180ml, etc."
-                      className="mt-2 w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="mt-2 w-full px-3 py-2 border border-gray-400 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                       onChange={(e) => handleInputChange("inhoud", e.target.value)}
                     />
                   )}
@@ -298,8 +300,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                       const truncated = value.slice(0, 13);
                       handleInputChange("ean", truncated);
                     }}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.ean ? "border-red-500" : "border-gray-300"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      errors.ean ? "border-red-500" : "border-gray-400"
                     }`}
                     placeholder="13 cijfers, bijv. 1234567890123"
                     maxLength={13}
@@ -354,8 +356,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                       }
                       handleInputChange("inkoopprijs", value);
                     }}
-                    className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.inkoopprijs ? "border-red-500" : "border-gray-300"
+                    className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      errors.inkoopprijs ? "border-red-500" : "border-gray-400"
                     }`}
                     placeholder="0.00"
                   />
@@ -400,8 +402,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                       }
                       handleInputChange("verkoopprijs", value);
                     }}
-                    className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.verkoopprijs ? "border-red-500" : "border-gray-300"
+                    className={`w-full pl-8 pr-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      errors.verkoopprijs ? "border-red-500" : "border-gray-400"
                     }`}
                     placeholder="0.00"
                   />
@@ -431,8 +433,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                       const value = e.target.value.replace(/[^\d]/g, "");
                       handleInputChange("voorraad", value);
                     }}
-                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      errors.voorraad ? "border-red-500" : "border-gray-300"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 ${
+                      errors.voorraad ? "border-red-500" : "border-gray-400"
                     }`}
                     placeholder="0"
                     min="0"
