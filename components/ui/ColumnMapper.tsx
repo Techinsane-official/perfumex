@@ -131,31 +131,34 @@ export default function ColumnMapper({
     const newMapping: ColumnMapping = {};
     const newAutoMapped = new Set<string>();
 
-    headers.forEach((header) => {
-      const normalizedHeader = header.toLowerCase().trim();
+    // Add safety check for headers
+    if (Array.isArray(headers)) {
+      headers.forEach((header) => {
+        const normalizedHeader = header.toLowerCase().trim();
 
-      // Try to auto-map based on exact matches or common variations
-      for (const [field, fieldInfo] of Object.entries(PRODUCT_FIELDS)) {
-        const fieldVariations = [
-          field.toLowerCase(),
-          fieldInfo.label.toLowerCase(),
-          fieldInfo.label.toLowerCase().replace(/\s+/g, ""),
-          fieldInfo.label.toLowerCase().replace(/\s+/g, "_"),
-          fieldInfo.label.toLowerCase().replace(/\s+/g, "-"),
-        ];
+        // Try to auto-map based on exact matches or common variations
+        for (const [field, fieldInfo] of Object.entries(PRODUCT_FIELDS)) {
+          const fieldVariations = [
+            field.toLowerCase(),
+            fieldInfo.label.toLowerCase(),
+            fieldInfo.label.toLowerCase().replace(/\s+/g, ""),
+            fieldInfo.label.toLowerCase().replace(/\s+/g, "_"),
+            fieldInfo.label.toLowerCase().replace(/\s+/g, "-"),
+          ];
 
-        if (fieldVariations.includes(normalizedHeader)) {
-          newMapping[header] = field as ProductField;
-          newAutoMapped.add(header);
-          break;
+          if (fieldVariations.includes(normalizedHeader)) {
+            newMapping[header] = field as ProductField;
+            newAutoMapped.add(header);
+            break;
+          }
         }
-      }
 
-      // If no auto-mapping found, set to null
-      if (!newMapping[header]) {
-        newMapping[header] = null;
-      }
-    });
+        // If no auto-mapping found, set to null
+        if (!newMapping[header]) {
+          newMapping[header] = null;
+        }
+      });
+    }
 
     setMapping(newMapping);
     setAutoMapped(newAutoMapped);

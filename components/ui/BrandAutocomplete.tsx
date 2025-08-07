@@ -30,8 +30,17 @@ export default function BrandAutocomplete({
       try {
         const response = await fetch("/api/admin/brands");
         if (response.ok) {
-                  const data = await response.json();
-        setSuggestions(Array.isArray(data.brands) ? data.brands : []);
+          const data = await response.json();
+          // Add more safety checks to ensure data.brands is always an array
+          if (data && data.brands && Array.isArray(data.brands)) {
+            setSuggestions(data.brands);
+          } else {
+            console.warn("Invalid brands data received:", data);
+            setSuggestions([]); // Empty array as fallback
+          }
+        } else {
+          console.error("Failed to fetch brands:", response.status);
+          setSuggestions([]); // Empty array as fallback
         }
       } catch (error) {
         console.error("Error fetching brands:", error);
