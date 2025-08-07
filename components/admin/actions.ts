@@ -11,6 +11,16 @@ export async function createProduct(formData: FormData) {
   try {
     console.log("🚀 createProduct gestart");
 
+    // Test database connection first
+    try {
+      console.log("🔍 Testing database connection...");
+      await prisma.$connect();
+      console.log("✅ Database connection successful");
+    } catch (dbError) {
+      console.error("❌ Database connection failed:", dbError);
+      throw new Error(`Database connection failed: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`);
+    }
+
     // 📥 Log alle ontvangen formulierdata
     console.log("📥 Ontvangen formulierdata:");
     for (const [key, value] of formData.entries()) {
