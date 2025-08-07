@@ -152,7 +152,8 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
         setErrors((prev) => ({ ...prev, ean: error.message }));
       } else {
         console.error("Error creating product:", error);
-        alert("Er is een fout opgetreden bij het aanmaken van het product.");
+        const errorMessage = error instanceof Error ? error.message : "Er is een fout opgetreden bij het aanmaken van het product.";
+        alert(errorMessage);
       }
     } finally {
       console.log("🏁 Form submission finished");

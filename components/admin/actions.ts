@@ -218,6 +218,8 @@ export async function createProduct(formData: FormData) {
     });
 
     // Re-throw voor client handling
-    throw error;
+    throw new Error(
+      `Product creation failed: ${(error as Record<string, unknown>)?.message || "Unknown error"}`
+    );
   }
 }
