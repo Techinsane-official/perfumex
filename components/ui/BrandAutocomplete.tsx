@@ -30,8 +30,8 @@ export default function BrandAutocomplete({
       try {
         const response = await fetch("/api/admin/brands");
         if (response.ok) {
-          const data = await response.json();
-          setSuggestions(data.brands || []);
+                  const data = await response.json();
+        setSuggestions(Array.isArray(data.brands) ? data.brands : []);
         }
       } catch (error) {
         console.error("Error fetching brands:", error);
@@ -68,11 +68,16 @@ export default function BrandAutocomplete({
 
   // Filter suggestions based on input
   useEffect(() => {
+    if (!Array.isArray(suggestions)) {
+      setFilteredSuggestions([]);
+      return;
+    }
+    
     if (!value) {
       setFilteredSuggestions(suggestions.slice(0, 10)); // Show first 10
     } else {
       const filtered = suggestions.filter((brand) =>
-        brand.toLowerCase().includes(value.toLowerCase()),
+        brand && typeof brand === 'string' && brand.toLowerCase().includes(value.toLowerCase()),
       );
       setFilteredSuggestions(filtered.slice(0, 8)); // Limit to 8 suggestions
     }
