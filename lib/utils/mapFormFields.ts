@@ -30,9 +30,29 @@ export function mapFormFieldsToDatabase(formData: FormData) {
     starRating: 0, // Default value, not in form yet
     category: null, // Optional field, not in form yet
     subcategory: null, // Optional field, not in form yet
-    tags: [], // Default empty array, not in form yet
+    tags: (() => {
+      const tagsData = formData.get("tags") as string;
+      if (tagsData) {
+        try {
+          return JSON.parse(tagsData);
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    })(),
     isActive: true, // Default value
-    images: [], // Later support file uploads
+    images: (() => {
+      const imagesData = formData.get("afbeeldingen") as string;
+      if (imagesData) {
+        try {
+          return JSON.parse(imagesData);
+        } catch {
+          return [];
+        }
+      }
+      return [];
+    })(),
   };
 }
 
