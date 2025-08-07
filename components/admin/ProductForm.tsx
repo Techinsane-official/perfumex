@@ -89,15 +89,22 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
+    console.log("🎯 handleSubmit called - form submission initiated");
     e.preventDefault();
+    console.log("🚀 Form submission started");
     setIsSubmitting(true);
     setErrors({});
 
     try {
+      console.log("📝 Form data:", formData);
+      
       // Validate form data
+      console.log("✅ Starting validation...");
       const validatedData = productSchema.parse(formData);
+      console.log("✅ Validation passed:", validatedData);
 
       // Create FormData for server action
+      console.log("📦 Creating FormData...");
       const formDataToSubmit = new FormData();
       formDataToSubmit.append("csrf_token", csrfToken);
       formDataToSubmit.append("merk", validatedData.merk);
@@ -126,13 +133,17 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
       formDataToSubmit.append("beschrijving", validatedData.beschrijving);
       formDataToSubmit.append("afbeeldingen", JSON.stringify(validatedData.afbeeldingen));
 
+      console.log("📤 Submitting to server action...");
       // Submit to server action
       await createProduct(formDataToSubmit);
+      console.log("✅ Server action completed successfully");
     } catch (error) {
+      console.error("❌ Error in handleSubmit:", error);
       if (error instanceof z.ZodError) {
+        console.log("📋 Zod validation error:", error.issues);
         const fieldErrors: Record<string, string> = {};
-        if (error.errors && Array.isArray(error.errors)) {
-          error.errors.forEach((err) => {
+        if (error.issues && Array.isArray(error.issues)) {
+          error.issues.forEach((err) => {
             if (err.path[0]) {
               fieldErrors[err.path[0] as string] = err.message;
             }
@@ -146,6 +157,7 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
         alert("Er is een fout opgetreden bij het aanmaken van het product.");
       }
     } finally {
+      console.log("🏁 Form submission finished");
       setIsSubmitting(false);
     }
   };
@@ -819,7 +831,7 @@ export default function ProductForm({ csrfToken, session }: ProductFormProps) {
                   images={formData.afbeeldingen}
                   onImagesChange={(images: string[]) => handleInputChange("afbeeldingen", images)}
                   maxImages={5}
-                  productId={undefined} // Will be generated for new products
+                  productId="temp-new-product" // Temporary ID for new products
                 />
                 {errors.afbeeldingen && (
                   <p className="mt-1 text-sm text-red-600">{errors.afbeeldingen}</p>
