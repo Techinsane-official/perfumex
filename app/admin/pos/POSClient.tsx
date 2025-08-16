@@ -106,10 +106,11 @@ export default function POSClient({ session }: POSClientProps) {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch('/api/products');
+      // Fetch a large page of active products for POS
+      const response = await fetch('/api/products?limit=2000&page=1');
       if (response.ok) {
         const data = await response.json();
-        setProducts(data.products);
+        setProducts(data.products || []);
       }
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -179,11 +180,75 @@ export default function POSClient({ session }: POSClientProps) {
     setCart(cart.filter(item => item.product.id !== productId));
   };
 
+  const buildReceiptHtml = (cartSnapshot: CartItem[], totals: { subtotal: number; tax: number; total: number }, meta: { sessionId?: string; operator?: string; customer?: string | null }) => {
+    const itemsRows = cartSnapshot.map(item => `
+      <tr>
+        <td style="padding:4px 0">${item.product.brand} ${item.product.name}</td>
+        <td style="padding:4px 0; text-align:center">${item.quantity}×</td>
+        <td style="padding:4px 0; text-align:right">€${item.unitPrice.toFixed(2)}</td>
+      </tr>
+    `).join("");
+
+    return `
+      <html>
+        <head>
+          <meta charSet="utf-8" />
+          <title>Receipt</title>
+          <style>
+            @page { size: 80mm auto; margin: 5mm; }
+            body { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+            .center { text-align: center; }
+            .bold { font-weight: 700; }
+            table { width: 100%; border-collapse: collapse; font-size: 12px; }
+            hr { border: none; border-top: 1px dashed #000; margin: 8px 0; }
+          </style>
+        </head>
+        <body>
+          <div class="center bold">Project X POS</div>
+          <div class="center">Session: ${meta.sessionId || '-'} | Operator: ${meta.operator || '-'}</div>
+          ${meta.customer ? `<div class="center">Customer: ${meta.customer}</div>` : ''}
+          <hr />
+          <table>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+          </table>
+          <hr />
+          <table>
+            <tr><td class="bold">Subtotal</td><td style="text-align:right">€${totals.subtotal.toFixed(2)}</td></tr>
+            <tr><td class="bold">VAT (21%)</td><td style="text-align:right">€${totals.tax.toFixed(2)}</td></tr>
+            <tr><td class="bold">Total</td><td style="text-align:right">€${totals.total.toFixed(2)}</td></tr>
+          </table>
+          <hr />
+          <div class="center">Thank you!</div>
+          <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 300); };</script>
+        </body>
+      </html>
+    `;
+  };
+
+  const triggerPrint = (cartSnapshot: CartItem[]) => {
+    const receipt = buildReceiptHtml(
+      cartSnapshot,
+      { subtotal, tax, total },
+      { sessionId: activeSession?.sessionId, operator: session.user?.username, customer: selectedCustomer?.name || null }
+    );
+    const printWindow = window.open("", "PRINT", "height=600,width=400");
+    if (printWindow) {
+      printWindow.document.open();
+      printWindow.document.write(receipt);
+      printWindow.document.close();
+    }
+  };
+
   const processTransaction = async () => {
     if (!activeSession || cart.length === 0) return;
 
     setIsProcessing(true);
     try {
+      // Snapshot cart for printing before clearing
+      const cartSnapshot = [...cart];
+
       const response = await fetch('/api/admin/pos/transactions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -207,6 +272,9 @@ export default function POSClient({ session }: POSClientProps) {
       });
 
       if (response.ok) {
+        // Auto print receipt (relies on OS printer default; set thermal printer as default or choose on dialog)
+        triggerPrint(cartSnapshot);
+
         // Clear cart and show success
         setCart([]);
         setSelectedCustomer(null);
