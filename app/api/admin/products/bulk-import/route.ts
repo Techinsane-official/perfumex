@@ -52,7 +52,12 @@ export async function POST(request: NextRequest) {
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
 
-    if (!validTypes.includes(file.type)) {
+    // Get file extension as fallback for file type detection
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    const isCSV = fileExtension === 'csv';
+    const isExcel = fileExtension === 'xlsx' || fileExtension === 'xls';
+
+    if (!validTypes.includes(file.type) && !isCSV && !isExcel) {
       return NextResponse.json(
         { error: "Invalid file type. Only CSV and Excel files are allowed." },
         { status: 400 }
@@ -76,24 +81,26 @@ export async function POST(request: NextRequest) {
     // Parse file
     let rows: any[] = [];
     try {
-      if (file.type === "text/csv") {
+      if (isCSV || file.type === "text/csv") {
         // For CSV files, use proper CSV parsing
         const csvText = buffer.toString('utf-8');
         const workbook = XLSX.read(csvText, { type: 'string' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         rows = XLSX.utils.sheet_to_json(worksheet);
-      } else {
+      } else if (isExcel || file.type.includes("excel") || file.type.includes("spreadsheet")) {
         // For Excel files
         const workbook = XLSX.read(buffer, { type: "buffer" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         rows = XLSX.utils.sheet_to_json(worksheet);
+      } else {
+        throw new Error(`Unsupported file type: ${file.type} (extension: ${fileExtension})`);
       }
     } catch (error) {
       console.error("File parsing error:", error);
       return NextResponse.json(
-        { error: "Failed to parse file. Please check the file format." },
+        { error: `Failed to parse file: ${error instanceof Error ? error.message : "Unknown error"}. Please check the file format.` },
         { status: 400 }
       );
     }
@@ -134,9 +141,22 @@ export async function POST(request: NextRequest) {
         }
 
         // Validate EAN uniqueness
-        const existingProduct = await prisma.product.findUnique({
-          where: { ean: row.ean },
-        });
+        let existingProduct = null;
+        try {
+          existingProduct = await prisma.product.findUnique({
+            where: { ean: row.ean },
+          });
+        } catch (dbError) {
+          console.error(`Database error checking EAN ${row.ean}:`, dbError);
+          results.push({
+            success: false,
+            message: `Database error checking EAN: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
+            row: rowNumber,
+            field: "ean",
+          });
+          errorCount++;
+          continue;
+        }
 
         if (existingProduct) {
           results.push({
@@ -178,25 +198,49 @@ export async function POST(request: NextRequest) {
         });
 
         // Create product with proper Decimal types
-        const product = await prisma.product.create({
-          data: {
-            name: row.name,
-            brand: row.brand,
-            content: row.content,
-            ean: row.ean,
-            purchasePrice: new Decimal(row.purchasePrice),
-            retailPrice: new Decimal(row.retailPrice),
-            stockQuantity: parseInt(row.stockQuantity) || 0,
-            maxOrderableQuantity: row.maxOrderableQuantity ? parseInt(row.maxOrderableQuantity) : 10,
-            starRating: row.starRating ? parseInt(row.starRating) : 0,
-            category: row.category || "Uncategorized",
-            subcategory: row.subcategory || "",
-            description: row.description || "",
-            tags,
-            status: row.status || "ACTIEF",
-            isActive: true,
-          },
-        });
+        let product = null;
+        try {
+          product = await prisma.product.create({
+            data: {
+              name: row.name,
+              brand: row.brand,
+              content: row.content,
+              ean: row.ean,
+              purchasePrice: new Decimal(row.purchasePrice),
+              retailPrice: new Decimal(row.retailPrice),
+              stockQuantity: parseInt(row.stockQuantity) || 0,
+              maxOrderableQuantity: row.maxOrderableQuantity ? parseInt(row.maxOrderableQuantity) : 10,
+              starRating: row.starRating ? parseInt(row.starRating) : 0,
+              category: row.category || "Uncategorized",
+              subcategory: row.subcategory || "",
+              description: row.description || "",
+              tags,
+              status: row.status || "ACTIEF",
+              isActive: true,
+            },
+          });
+        } catch (createError) {
+          console.error(`Error creating product for row ${rowNumber}:`, createError);
+          results.push({
+            success: false,
+            message: `Failed to create product: ${createError instanceof Error ? createError.message : "Unknown error"}`,
+            row: rowNumber,
+            field: "database",
+          });
+          errorCount++;
+          continue;
+        }
+
+        if (!product) {
+          results.push({
+            success: false,
+            message: "Product creation failed - no product returned",
+            row: rowNumber,
+            field: "database",
+          });
+          errorCount++;
+          continue;
+        }
 
         console.log(`Product created successfully:`, product.id);
 
