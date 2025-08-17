@@ -1,0 +1,3 @@
+name,brand,content,ean,purchasePrice,retailPrice,stockQuantity
+Test Product,Test Brand,100ml,1234567890123,25.50,45.99,100
+Another Product,Another Brand,50ml,9876543210987,15.25,29.99,50
