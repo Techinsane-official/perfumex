@@ -147,13 +147,13 @@ export async function POST(request: NextRequest) {
     // Process each row
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i];
-      const rowNumber = i + 2; // +2 because Excel/CSV is 1-indexed and we have headers
+      const rowNumber = i + 1; // +1 because we're 0-indexed and want to show actual row numbers
 
       try {
         // Validate required fields
         const requiredFields = ["name", "brand", "content", "ean", "purchasePrice", "retailPrice"];
         for (const field of requiredFields) {
-          if (!row[field]) {
+          if (!row[field as keyof typeof row]) {
             results.push({
               success: false,
               message: `Missing required field: ${field}`,
@@ -167,10 +167,13 @@ export async function POST(request: NextRequest) {
 
         // Validate EAN uniqueness
         let existingProduct = null;
+        let eanString = ""; // Declare eanString in the correct scope
+        
         try {
-          // Validate EAN before database query
-          if (!row.ean || typeof row.ean !== 'string' || row.ean.trim() === '') {
-            console.log(`⚠️ Row ${rowNumber}: Invalid EAN value:`, { ean: row.ean, type: typeof row.ean });
+          // Validate EAN before database query - accept both string and number types
+          let eanValue = row.ean;
+          if (eanValue === undefined || eanValue === null) {
+            console.log(`⚠️ Row ${rowNumber}: Missing EAN value`);
             results.push({
               success: false,
               message: "EAN is required and cannot be empty",
@@ -181,9 +184,23 @@ export async function POST(request: NextRequest) {
             continue;
           }
 
-          console.log(`🔍 Row ${rowNumber}: Checking EAN uniqueness for: ${row.ean}`);
+          // Convert EAN to string and validate format
+          eanString = eanValue.toString().trim();
+          if (eanString === '' || eanString.length !== 13 || !/^\d{13}$/.test(eanString)) {
+            console.log(`⚠️ Row ${rowNumber}: Invalid EAN format:`, { ean: eanValue, eanString, length: eanString.length });
+            results.push({
+              success: false,
+              message: `EAN must be exactly 13 digits, got: ${eanString} (${eanString.length} characters)`,
+              row: rowNumber,
+              field: "ean",
+            });
+            errorCount++;
+            continue;
+          }
+
+          console.log(`🔍 Row ${rowNumber}: Checking EAN uniqueness for: ${eanString}`);
           existingProduct = await prisma.product.findUnique({
-            where: { ean: row.ean },
+            where: { ean: eanString },
           });
         } catch (dbError) {
           console.error(`Database error checking EAN ${row.ean}:`, dbError);
@@ -200,7 +217,7 @@ export async function POST(request: NextRequest) {
         if (existingProduct) {
           results.push({
             success: false,
-            message: `EAN ${row.ean} already exists`,
+            message: `EAN ${eanString} already exists`,
             row: rowNumber,
             field: "ean",
           });
@@ -211,7 +228,7 @@ export async function POST(request: NextRequest) {
         // Validate numeric fields
         const numericFields = ["purchasePrice", "retailPrice", "stockQuantity"];
         for (const field of numericFields) {
-          if (row[field] && isNaN(Number(row[field]))) {
+          if (row[field as keyof typeof row] && isNaN(Number(row[field as keyof typeof row]))) {
             results.push({
               success: false,
               message: `Invalid numeric value for ${field}`,
@@ -230,7 +247,7 @@ export async function POST(request: NextRequest) {
           name: row.name,
           brand: row.brand,
           content: row.content,
-          ean: row.ean,
+          ean: eanString,
           purchasePrice: row.purchasePrice,
           retailPrice: row.retailPrice,
           stockQuantity: row.stockQuantity
@@ -240,8 +257,8 @@ export async function POST(request: NextRequest) {
         let product = null;
         try {
           // Additional validation before creating product
-          if (!row.name || !row.brand || !row.content || !row.ean) {
-            throw new Error(`Missing required fields: name=${!!row.name}, brand=${!!row.brand}, content=${!!row.content}, ean=${!!row.ean}`);
+          if (!row.name || !row.brand || !row.content || !eanString) {
+            throw new Error(`Missing required fields: name=${!!row.name}, brand=${!!row.brand}, content=${!!row.content}, ean=${!!eanString}`);
           }
 
           product = await prisma.product.create({
@@ -249,7 +266,7 @@ export async function POST(request: NextRequest) {
               name: row.name,
               brand: row.brand,
               content: row.content,
-              ean: row.ean,
+              ean: eanString,
               purchasePrice: new Decimal(row.purchasePrice),
               retailPrice: new Decimal(row.retailPrice),
               stockQuantity: parseInt(row.stockQuantity) || 0,
