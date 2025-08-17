@@ -374,6 +374,70 @@ export default function ProductImportPage() {
     }
   };
 
+  // Add the missing actual import function
+  const performActualImport = async () => {
+    if (!selectedFile || !validationResult) return;
+
+    setIsImporting(true);
+    const startTime = new Date();
+
+    try {
+      // Create FormData for the API call
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      // Call the bulk import API
+      const response = await fetch("/api/admin/products/bulk-import", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Import failed");
+      }
+
+      const result = await response.json();
+      
+      // Update progress to completed
+      setImportProgress(prev => ({
+        ...prev,
+        status: "completed",
+        processedRows: validationResult.totalRows,
+        successfulRows: result.successCount || 0,
+        failedRows: result.errorCount || 0,
+        endTime: new Date(),
+      }));
+
+      // Calculate elapsed time
+      const endTime = new Date();
+      const elapsedMs = endTime.getTime() - startTime.getTime();
+      const minutes = Math.floor(elapsedMs / 60000);
+      const seconds = Math.floor((elapsedMs % 60000) / 1000);
+      const elapsedTime = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+      setImportSuccess({
+        totalRows: validationResult.totalRows,
+        successfulRows: result.successCount || 0,
+        failedRows: result.errorCount || 0,
+        skippedRows: 0,
+        duplicateRows: validationResult.duplicateRows,
+        elapsedTime,
+      });
+
+    } catch (error) {
+      console.error("Import error:", error);
+      setImportProgress(prev => ({
+        ...prev,
+        status: "error",
+        endTime: new Date(),
+      }));
+      setErrors({ bestandsnaam: error instanceof Error ? error.message : "Import failed" });
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="bg-white shadow">
@@ -521,22 +585,7 @@ export default function ProductImportPage() {
                     duplicateConfig={duplicateConfig}
                     onStartImport={() => {
                       // Start the actual import process
-                      setIsImporting(true);
-                      setImportProgress({
-                        status: "loading",
-                        progress: 0,
-                        totalRows: validationResult.totalRows,
-                        processedRows: 0,
-                        successfulRows: 0,
-                        failedRows: 0,
-                        skippedRows: 0,
-                        currentBatch: 0,
-                        totalBatches: 0,
-                        errors: [],
-                        warnings: [],
-                        duplicates: [],
-                        startTime: new Date(),
-                      });
+                      performActualImport();
                     }}
                     isImporting={isImporting}
                   />
