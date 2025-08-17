@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile } from "fs/promises";
+import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import * as XLSX from "xlsx";
+import { Decimal } from "@prisma/client/runtime/library";
 
 interface ImportResult {
   success: boolean;
@@ -20,13 +21,13 @@ interface ProductRow {
   purchasePrice: number;
   retailPrice: number;
   stockQuantity: number;
-  maxOrderableQuantity: number;
-  starRating: number;
-  category: string;
-  subcategory: string;
+  maxOrderableQuantity?: number;
+  starRating?: number;
+  category?: string;
+  subcategory?: string;
   description?: string;
   tags?: string;
-  status: string;
+  status?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -58,27 +59,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Create temp directory if it doesn't exist
+    const tempDir = join(process.cwd(), "temp");
+    try {
+      await mkdir(tempDir, { recursive: true });
+    } catch (error) {
+      console.error("Error creating temp directory:", error);
+    }
+
     // Save file temporarily
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const tempPath = join(process.cwd(), "temp", `${Date.now()}-${file.name}`);
+    const tempPath = join(tempDir, `${Date.now()}-${file.name}`);
     await writeFile(tempPath, buffer);
 
     // Parse file
     let rows: any[] = [];
     try {
       if (file.type === "text/csv") {
-        const workbook = XLSX.read(buffer, { type: "buffer" });
+        // For CSV files, use proper CSV parsing
+        const csvText = buffer.toString('utf-8');
+        const workbook = XLSX.read(csvText, { type: 'string' });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         rows = XLSX.utils.sheet_to_json(worksheet);
       } else {
+        // For Excel files
         const workbook = XLSX.read(buffer, { type: "buffer" });
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         rows = XLSX.utils.sheet_to_json(worksheet);
       }
     } catch (error) {
+      console.error("File parsing error:", error);
       return NextResponse.json(
         { error: "Failed to parse file. Please check the file format." },
         { status: 400 }
@@ -112,6 +125,7 @@ export async function POST(request: NextRequest) {
               row: rowNumber,
               field,
             });
+            errorCount++;
             continue;
           }
         }
@@ -128,11 +142,12 @@ export async function POST(request: NextRequest) {
             row: rowNumber,
             field: "ean",
           });
+          errorCount++;
           continue;
         }
 
         // Validate numeric fields
-        const numericFields = ["purchasePrice", "retailPrice", "stockQuantity", "maxOrderableQuantity", "starRating"];
+        const numericFields = ["purchasePrice", "retailPrice", "stockQuantity"];
         for (const field of numericFields) {
           if (row[field] && isNaN(Number(row[field]))) {
             results.push({
@@ -141,6 +156,7 @@ export async function POST(request: NextRequest) {
               row: rowNumber,
               field,
             });
+            errorCount++;
             continue;
           }
         }
@@ -148,18 +164,18 @@ export async function POST(request: NextRequest) {
         // Parse tags
         const tags = row.tags ? row.tags.split(",").map((tag: string) => tag.trim()) : [];
 
-        // Create product
+        // Create product with proper Decimal types
         const product = await prisma.product.create({
           data: {
             name: row.name,
             brand: row.brand,
             content: row.content,
             ean: row.ean,
-            purchasePrice: parseFloat(row.purchasePrice),
-            retailPrice: parseFloat(row.retailPrice),
+            purchasePrice: new Decimal(row.purchasePrice),
+            retailPrice: new Decimal(row.retailPrice),
             stockQuantity: parseInt(row.stockQuantity) || 0,
-            maxOrderableQuantity: parseInt(row.maxOrderableQuantity) || 10,
-            starRating: parseFloat(row.starRating) || 0,
+            maxOrderableQuantity: row.maxOrderableQuantity ? parseInt(row.maxOrderableQuantity) : 10,
+            starRating: row.starRating ? parseInt(row.starRating) : 0,
             category: row.category || "Uncategorized",
             subcategory: row.subcategory || "",
             description: row.description || "",
