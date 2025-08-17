@@ -9,9 +9,9 @@ generator client {
 /// @seed = "npx tsx prisma/seed.ts"
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DATABASE_URL_PRISMA")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")      // Transaction Pooler (port 6543) for runtime
+  directUrl = env("DIRECT_URL")        // Direct Connection (port 5432) for migrations
 }
 
 // User model for authentication and role management
