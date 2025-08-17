@@ -185,11 +185,13 @@ export default function ColumnMapper({
 
   // Get field usage count for duplicate detection
   const fieldUsageCount: Record<ProductField, number> = {} as Record<ProductField, number>;
-  Object.values(mapping).forEach((field) => {
-    if (field) {
-      fieldUsageCount[field] = (fieldUsageCount[field] || 0) + 1;
-    }
-  });
+  if (mapping && typeof mapping === 'object') {
+    Object.values(mapping).forEach((field) => {
+      if (field) {
+        fieldUsageCount[field] = (fieldUsageCount[field] || 0) + 1;
+      }
+    });
+  }
 
   return (
     <div className="space-y-6">
