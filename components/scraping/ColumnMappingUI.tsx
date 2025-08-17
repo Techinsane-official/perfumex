@@ -41,14 +41,12 @@ const CANONICAL_FIELDS = [
 ];
 
 export default function ColumnMappingUI({
-  csvHeaders = [],
+  csvHeaders,
   onMappingComplete,
   onSaveTemplate,
   savedTemplates = [],
   supplierName = ''
 }: ColumnMappingUIProps) {
-  // Ensure csvHeaders is always an array
-  const safeHeaders = Array.isArray(csvHeaders) ? csvHeaders : [];
   
   const [mapping, setMapping] = useState<ColumnMapping>({});
   const [autoMapped, setAutoMapped] = useState<boolean>(false);
@@ -58,15 +56,15 @@ export default function ColumnMappingUI({
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
   useEffect(() => {
-    if (safeHeaders.length > 0 && !autoMapped) {
+    if (csvHeaders.length > 0 && !autoMapped) {
       autoMapColumns();
     }
-  }, [safeHeaders]);
+  }, [csvHeaders]);
 
   const autoMapColumns = () => {
     const autoMapping: ColumnMapping = {};
     
-    safeHeaders.forEach(header => {
+    csvHeaders.forEach(header => {
       const lowerHeader = header.toLowerCase();
       
       // Try to find exact matches first
@@ -224,18 +222,14 @@ export default function ColumnMappingUI({
             <div>
               <label className="text-sm font-medium text-gray-700">CSV Headers (Source)</label>
               <div className="mt-2 space-y-2">
-                                 {safeHeaders.length > 0 ? safeHeaders.map((header, index) => (
+                                 {csvHeaders.map((header, index) => (
                    <div
                      key={index}
                      className="p-3 border rounded-lg bg-gray-50 text-sm font-mono"
                    >
                      {header}
                    </div>
-                 )) : (
-                   <div className="p-3 border rounded-lg bg-gray-50 text-sm text-gray-500">
-                     No headers available
-                   </div>
-                 )}
+                 ))}
               </div>
             </div>
 
@@ -274,7 +268,7 @@ export default function ColumnMappingUI({
                     </div>
                     
                                          <datalist id={`options-${field.key}`}>
-                       {safeHeaders.map((header, index) => (
+                       {csvHeaders.map((header, index) => (
                          <option key={index} value={header} />
                        ))}
                      </datalist>
