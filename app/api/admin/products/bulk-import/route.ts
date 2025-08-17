@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
 import * as XLSX from "xlsx";
 import { Decimal } from "decimal.js";
 
@@ -73,19 +71,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create temp directory if it doesn't exist
-    const tempDir = join(process.cwd(), "temp");
-    try {
-      await mkdir(tempDir, { recursive: true });
-    } catch (error) {
-      console.error("Error creating temp directory:", error);
-    }
-
-    // Save file temporarily
+    // Process file directly in memory (no temp file needed for serverless)
+    console.log("💾 Processing file in memory...");
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const tempPath = join(tempDir, `${Date.now()}-${file.name}`);
-    await writeFile(tempPath, buffer);
+    console.log("💾 File buffer created:", buffer.length, "bytes");
 
     // Parse file
     console.log("📊 Starting file parsing...");
@@ -281,12 +271,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Clean up temp file
-    try {
-      await writeFile(tempPath, ""); // Clear the file
-    } catch (error) {
-      console.error("Error cleaning up temp file:", error);
-    }
+    // No temp file cleanup needed since we process in memory
+    console.log("✅ Import processing completed");
 
     return NextResponse.json({
       results,
