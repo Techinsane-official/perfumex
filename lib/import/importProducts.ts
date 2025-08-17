@@ -212,16 +212,18 @@ async function checkExistingProducts(
   const eanCodes: string[] = [];
   const eanToRowIndex = new Map<string, number>();
 
-  batch.forEach((row, index) => {
-    const eanColumn = columnMapping["ean"];
-    if (eanColumn && row[eanColumn]) {
-      const ean = row[eanColumn].toString().trim();
-      if (ean && ean.length === 13) {
-        eanCodes.push(ean);
-        eanToRowIndex.set(ean, index);
+  if (batch && Array.isArray(batch)) {
+    batch.forEach((row, index) => {
+      const eanColumn = columnMapping["ean"];
+      if (eanColumn && row[eanColumn]) {
+        const ean = row[eanColumn].toString().trim();
+        if (ean && ean.length === 13) {
+          eanCodes.push(ean);
+          eanToRowIndex.set(ean, index);
+        }
       }
-    }
-  });
+    });
+  }
 
   if (eanCodes.length === 0) {
     return existingProducts;
@@ -241,9 +243,11 @@ async function checkExistingProducts(
   });
 
   // Map existing products
-  existing.forEach((product) => {
-    existingProducts.set(product.ean, product);
-  });
+  if (existing && Array.isArray(existing)) {
+    existing.forEach((product) => {
+      existingProducts.set(product.ean, product);
+    });
+  }
 
   return existingProducts;
 }
@@ -326,46 +330,48 @@ export async function processBatch(
   const warnings: ImportWarning[] = [];
   const duplicates: ImportError[] = [];
 
-  results.forEach((result, index) => {
-    if (result.status === "fulfilled" && result.value) {
-      if (result.value.success) {
-        successful++;
-      } else if (result.value.skipped) {
-        skipped++;
-        if (result.value.error) {
-          errors.push(result.value.error);
+  if (results && Array.isArray(results)) {
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled" && result.value) {
+        if (result.value.success) {
+          successful++;
+        } else if (result.value.skipped) {
+          skipped++;
+          if (result.value.error) {
+            errors.push(result.value.error);
+          }
+        } else if (result.value.duplicate) {
+          failed++;
+          if (result.value.error) {
+            duplicates.push(result.value.error);
+          }
+        } else {
+          failed++;
+          if (result.value.error) {
+            errors.push(result.value.error);
+          }
+          if (result.value.warning) {
+            warnings.push(result.value.warning);
+          }
         }
-      } else if (result.value.duplicate) {
+      } else if (result.status === "rejected") {
         failed++;
-        if (result.value.error) {
-          duplicates.push(result.value.error);
-        }
-      } else {
-        failed++;
-        if (result.value.error) {
-          errors.push(result.value.error);
-        }
-        if (result.value.warning) {
-          warnings.push(result.value.warning);
-        }
+        const batchItem = index < batch.length ? batch[index] : {};
+        const errorMessage =
+          typeof result.reason === "string"
+            ? result.reason
+            : result.reason instanceof Error
+              ? result.reason.message
+              : "Onbekende fout";
+        errors.push({
+          row: startIndex + index + 1,
+          field: "unknown",
+          message: errorMessage,
+          data: batchItem,
+        });
       }
-    } else if (result.status === "rejected") {
-      failed++;
-      const batchItem = index < batch.length ? batch[index] : {};
-      const errorMessage =
-        typeof result.reason === "string"
-          ? result.reason
-          : result.reason instanceof Error
-            ? result.reason.message
-            : "Onbekende fout";
-      errors.push({
-        row: startIndex + index + 1,
-        field: "unknown",
-        message: errorMessage,
-        data: batchItem,
-      });
-    }
-  });
+    });
+  }
 
   return { successful, failed, skipped, errors, warnings, duplicates };
 }
