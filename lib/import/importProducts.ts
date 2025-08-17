@@ -142,6 +142,21 @@ async function processProductRow(
     };
 
     // Check if product already exists
+    // Validate EAN before database query
+    if (!productData.ean || typeof productData.ean !== 'string' || productData.ean.trim() === '') {
+      console.log(`⚠️ Row ${rowIndex + 1}: Invalid EAN value:`, { ean: productData.ean, type: typeof productData.ean });
+      return {
+        success: false,
+        error: {
+          row: rowIndex + 1,
+          field: "ean",
+          message: "EAN is required and cannot be empty",
+          data: productData,
+        },
+      };
+    }
+
+    console.log(`🔍 Row ${rowIndex + 1}: Checking EAN uniqueness for: ${productData.ean}`);
     const existingProduct = await prisma.product.findUnique({
       where: { ean: productData.ean },
     });
@@ -159,15 +174,39 @@ async function processProductRow(
     }
 
     // Create or update the product
-    if (existingProduct && overwriteExisting) {
-      await prisma.product.update({
-        where: { ean: productData.ean },
-        data: productData,
-      });
-    } else {
-      await prisma.product.create({
-        data: productData,
-      });
+    try {
+      if (existingProduct && overwriteExisting) {
+        await prisma.product.update({
+          where: { ean: productData.ean },
+          data: productData,
+        });
+      } else {
+        await prisma.product.create({
+          data: productData,
+        });
+      }
+    } catch (createError) {
+      console.error(`Error creating/updating product for row ${rowIndex + 1}:`, createError);
+      console.error(`Product data:`, productData);
+      
+      let errorMessage = "Failed to create/update product";
+      if (createError instanceof Error) {
+        if (createError.message.includes('Invalid `prisma.product.') || createError.message.includes('Invalid `prisma.product.create()`')) {
+          errorMessage = `Database validation error: ${createError.message}`;
+        } else {
+          errorMessage = createError.message;
+        }
+      }
+      
+      return {
+        success: false,
+        error: {
+          row: rowIndex + 1,
+          field: "database",
+          message: errorMessage,
+          data: productData,
+        },
+      };
     }
 
     return { success: true };

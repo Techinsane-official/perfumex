@@ -152,6 +152,20 @@ export async function POST(request: NextRequest) {
         // Validate EAN uniqueness
         let existingProduct = null;
         try {
+          // Validate EAN before database query
+          if (!row.ean || typeof row.ean !== 'string' || row.ean.trim() === '') {
+            console.log(`⚠️ Row ${rowNumber}: Invalid EAN value:`, { ean: row.ean, type: typeof row.ean });
+            results.push({
+              success: false,
+              message: "EAN is required and cannot be empty",
+              row: rowNumber,
+              field: "ean",
+            });
+            errorCount++;
+            continue;
+          }
+
+          console.log(`🔍 Row ${rowNumber}: Checking EAN uniqueness for: ${row.ean}`);
           existingProduct = await prisma.product.findUnique({
             where: { ean: row.ean },
           });
@@ -209,6 +223,11 @@ export async function POST(request: NextRequest) {
         // Create product with proper Decimal types
         let product = null;
         try {
+          // Additional validation before creating product
+          if (!row.name || !row.brand || !row.content || !row.ean) {
+            throw new Error(`Missing required fields: name=${!!row.name}, brand=${!!row.brand}, content=${!!row.content}, ean=${!!row.ean}`);
+          }
+
           product = await prisma.product.create({
             data: {
               name: row.name,
@@ -230,9 +249,22 @@ export async function POST(request: NextRequest) {
           });
         } catch (createError) {
           console.error(`Error creating product for row ${rowNumber}:`, createError);
+          console.error(`Row data:`, row);
+          
+          let errorMessage = "Failed to create product";
+          if (createError instanceof Error) {
+            if (createError.message.includes('Invalid `prisma.product.create()`')) {
+              errorMessage = `Database validation error: ${createError.message}`;
+            } else if (createError.message.includes('Missing required fields')) {
+              errorMessage = createError.message;
+            } else {
+              errorMessage = createError.message;
+            }
+          }
+          
           results.push({
             success: false,
-            message: `Failed to create product: ${createError instanceof Error ? createError.message : "Unknown error"}`,
+            message: errorMessage,
             row: rowNumber,
             field: "database",
           });
