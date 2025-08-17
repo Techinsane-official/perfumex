@@ -86,6 +86,45 @@ export default function SettingsClient() {
   const [autoPrint, setAutoPrint] = useState(true);
   const [includeDescriptions, setIncludeDescriptions] = useState(true);
   const [includeQr, setIncludeQr] = useState(false);
+  const loadReceiptSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/pos/receipt');
+      if (res.ok) {
+        const s = await res.json();
+        setReceiptHeader(s.header ?? receiptHeader);
+        setReceiptFooter(s.footer ?? receiptFooter);
+        setReceiptNotes(s.notes ?? "");
+        setAutoPrint(Boolean(s.autoPrint));
+        setIncludeDescriptions(Boolean(s.includeDescriptions));
+        setIncludeQr(Boolean(s.includeQr));
+      }
+    } catch (e) {
+      console.error('Failed to load POS receipt settings', e);
+    }
+  };
+  const saveReceiptSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/settings/pos/receipt', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          header: receiptHeader,
+          footer: receiptFooter,
+          notes: receiptNotes,
+          autoPrint,
+          includeDescriptions,
+          includeQr,
+        }),
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || 'Failed to save');
+      }
+    } catch (e) {
+      alert((e as Error).message);
+    }
+  };
+  useEffect(() => { loadReceiptSettings(); }, []);
 
   useEffect(() => {
     fetchIntegrations();
@@ -719,7 +758,7 @@ export default function SettingsClient() {
                   </div>
                 </div>
 
-                <Button>
+                <Button onClick={saveReceiptSettings}>
                   <Save className="w-4 h-4 mr-2" />
                   Save POS Settings
                 </Button>
@@ -779,7 +818,7 @@ export default function SettingsClient() {
                 </div>
                 <div className="flex justify-end gap-2">
                   <Button variant="outline" onClick={() => setReceiptModalOpen(false)}>Close</Button>
-                  <Button onClick={() => setReceiptModalOpen(false)}>
+                  <Button onClick={async () => { await saveReceiptSettings(); setReceiptModalOpen(false); }}>
                     <Save className="w-4 h-4 mr-2" /> Save Template
                   </Button>
                 </div>

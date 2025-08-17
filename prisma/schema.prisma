@@ -665,6 +665,16 @@ model Translation {
   @@map("translations")
 }
 
+// Generic application settings storage
+model AppSetting {
+  key       String   @id // e.g., "pos.receipt"
+  value     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("app_settings")
+}
+
 
 
 // Add new enums for picklist system
@@ -790,4 +800,233 @@ enum PaymentStatus {
   FAILED
   REFUNDED
   PARTIALLY_REFUNDED
+}
+
+// ============================================================================
+// SCRAPING MODULE MODELS
+// ============================================================================
+
+// Supplier model for storing supplier information
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  email       String?
+  website     String?
+  country     String   @default("NL")
+  currency    String   @default("EUR")
+  isActive    Boolean  @default(true)
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  mappings    SupplierMapping[]
+  normalizedProducts NormalizedProduct[]
+  scrapingJobs PriceScrapingJob[]
+
+  @@index([name])
+  @@index([country])
+  @@index([isActive])
+  @@map("suppliers")
+}
+
+// Supplier column mapping templates
+model SupplierMapping {
+  id              String   @id @default(cuid())
+  supplierId      String
+  name            String   // Template name
+  description     String?
+  isDefault       Boolean  @default(false)
+  columnMappings  Json     // Stored as JSON: { "brand": "Merk", "product_name": "Product Naam", ... }
+  dataCleaningRules Json?  // Optional cleaning rules
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@unique([supplierId, name])
+  @@index([supplierId])
+  @@index([isDefault])
+  @@map("supplier_mappings")
+}
+
+// Normalized products from ETL process
+model NormalizedProduct {
+  id                    String   @id @default(cuid())
+  supplierId            String
+  brand                 String
+  productName           String
+  variantSize           String?  // Size in ml
+  ean                   String?  // Optional, may not always be available
+  wholesalePrice        Decimal  @db.Decimal(10, 2)
+  currency              String   @default("EUR")
+  packSize              Int      @default(1)
+  supplierName          String   // Supplier name for reference
+  lastPurchasePrice     Decimal? @db.Decimal(10, 2)
+  availability          Boolean  @default(true)
+  notes                 String?
+  importSessionId       String?  // Reference to import session
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  priceResults PriceScrapingResult[]
+  scrapingAlerts ScrapingAlert[]
+
+  @@index([supplierId])
+  @@index([brand])
+  @@index([ean])
+  @@index([wholesalePrice])
+  @@index([importSessionId])
+  @@map("normalized_products")
+}
+
+// Price scraping sources configuration
+model PriceScrapingSource {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  baseUrl         String
+  country         String   // NL, DE, FR, etc.
+  isActive        Boolean  @default(true)
+  priority        Int      @default(1) // Higher number = higher priority
+  rateLimit       Int      @default(1000) // Requests per hour
+  lastScraped    DateTime?
+  healthStatus    ScrapingHealthStatus @default(HEALTHY)
+  config          Json     // Source-specific configuration
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  priceResults PriceScrapingResult[]
+
+  @@index([name])
+  @@index([country])
+  @@index([isActive])
+  @@index([priority])
+  @@map("price_scraping_sources")
+}
+
+// Price scraping results
+model PriceScrapingResult {
+  id                    String   @id @default(cuid())
+  normalizedProductId   String
+  sourceId              String
+  productTitle          String
+  merchant              String
+  url                   String
+  price                 Decimal  @db.Decimal(10, 2)
+  priceInclVat         Boolean  @default(true)
+  shippingCost          Decimal? @db.Decimal(10, 2)
+  availability          Boolean  @default(true)
+  confidenceScore      Decimal  @db.Decimal(3, 2) // 0.00 to 1.00
+  isLowestPrice        Boolean  @default(false)
+  scrapedAt            DateTime @default(now())
+  jobId                String?  // Reference to scraping job
+
+  // Relations
+  normalizedProduct NormalizedProduct @relation(fields: [normalizedProductId], references: [id], onDelete: Cascade)
+  source           PriceScrapingSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  scrapingJob      PriceScrapingJob? @relation(fields: [jobId], references: [id])
+
+  @@index([normalizedProductId])
+  @@index([sourceId])
+  @@index([price])
+  @@index([confidenceScore])
+  @@index([scrapedAt])
+  @@index([isLowestPrice])
+  @@map("price_scraping_results")
+}
+
+// Price scraping jobs for tracking
+model PriceScrapingJob {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  status          ScrapingJobStatus @default(PENDING)
+  supplierId      String?
+  totalProducts   Int      @default(0)
+  processedProducts Int    @default(0)
+  successfulProducts Int   @default(0)
+  failedProducts  Int      @default(0)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  errorMessage    String?
+  config          Json     // Job configuration
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  supplier Supplier? @relation(fields: [supplierId], references: [id])
+  priceResults PriceScrapingResult[]
+
+  @@index([status])
+  @@index([supplierId])
+  @@index([startedAt])
+  @@map("price_scraping_jobs")
+}
+
+// Currency exchange rates
+model CurrencyRate {
+  id            String   @id @default(cuid())
+  fromCurrency  String
+  toCurrency    String
+  rate          Decimal  @db.Decimal(10, 6)
+  date          DateTime @default(now())
+  source        String   // Exchange rate provider
+  isActive      Boolean  @default(true)
+
+  @@unique([fromCurrency, toCurrency, date])
+  @@index([fromCurrency])
+  @@index([toCurrency])
+  @@index([date])
+  @@map("currency_rates")
+}
+
+// Scraping alerts for margin opportunities
+model ScrapingAlert {
+  id                    String   @id @default(cuid())
+  normalizedProductId   String
+  alertType             ScrapingAlertType
+  message               String
+  currentMargin         Decimal  @db.Decimal(5, 2) // Percentage
+  targetMargin          Decimal  @db.Decimal(5, 2) // Percentage
+  isRead                Boolean  @default(false)
+  isResolved            Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relations
+  normalizedProduct NormalizedProduct @relation(fields: [normalizedProductId], references: [id], onDelete: Cascade)
+
+  @@index([normalizedProductId])
+  @@index([alertType])
+  @@index([isRead])
+  @@index([createdAt])
+  @@map("scraping_alerts")
+}
+
+// Enums for scraping functionality
+enum ScrapingHealthStatus {
+  HEALTHY
+  DEGRADED
+  UNHEALTHY
+  OFFLINE
+}
+
+enum ScrapingJobStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ScrapingAlertType {
+  MARGIN_OPPORTUNITY
+  PRICE_DROP
+  COMPETITOR_ALERT
+  SUPPLY_ISSUE
+  DATA_QUALITY
 }

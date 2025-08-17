@@ -72,6 +72,8 @@ export default function POSClient({ session }: POSClientProps) {
   const [paymentMethod, setPaymentMethod] = useState<"CASH" | "CARD" | "BANK_TRANSFER" | "MOBILE_PAYMENT" | "GIFT_CARD" | "OTHER">("CASH");
   const [isProcessing, setIsProcessing] = useState(false);
   const [showCustomerSelect, setShowCustomerSelect] = useState(false);
+  // Receipt settings loaded from server
+  const [receiptSettings, setReceiptSettings] = useState<{ header: string; footer: string; notes?: string; autoPrint: boolean; includeDescriptions: boolean; includeQr: boolean } | null>(null);
 
   // Calculate totals
   const subtotal = cart.reduce((sum, item) => sum + item.totalPrice, 0);
@@ -82,6 +84,17 @@ export default function POSClient({ session }: POSClientProps) {
     fetchProducts();
     fetchCustomers();
     startNewSession();
+    // load receipt settings
+    (async () => {
+      try {
+        const res = await fetch('/api/admin/settings/pos/receipt');
+        if (res.ok) {
+          setReceiptSettings(await res.json());
+        }
+      } catch (e) {
+        console.error('Failed to load receipt settings', e);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -189,6 +202,10 @@ export default function POSClient({ session }: POSClientProps) {
       </tr>
     `).join("");
 
+    const header = (receiptSettings?.header ?? 'Project X POS');
+    const footer = (receiptSettings?.footer ?? 'Thank you!');
+    const notes  = (receiptSettings?.notes ?? '');
+
     return `
       <html>
         <head>
@@ -204,7 +221,7 @@ export default function POSClient({ session }: POSClientProps) {
           </style>
         </head>
         <body>
-          <div class="center bold">Project X POS</div>
+          <div class="center bold">${header.replace(/\n/g, '<br/>')}</div>
           <div class="center">Session: ${meta.sessionId || '-'} | Operator: ${meta.operator || '-'}</div>
           ${meta.customer ? `<div class="center">Customer: ${meta.customer}</div>` : ''}
           <hr />
@@ -220,7 +237,8 @@ export default function POSClient({ session }: POSClientProps) {
             <tr><td class="bold">Total</td><td style="text-align:right">€${totals.total.toFixed(2)}</td></tr>
           </table>
           <hr />
-          <div class="center">Thank you!</div>
+          <div class="center">${footer.replace(/\n/g, '<br/>')}</div>
+          ${notes ? `<div class="center" style="margin-top:6px">${notes.replace(/\n/g, '<br/>')}</div>` : ''}
           <script>window.onload = () => { window.print(); setTimeout(() => window.close(), 300); };</script>
         </body>
       </html>
@@ -272,8 +290,10 @@ export default function POSClient({ session }: POSClientProps) {
       });
 
       if (response.ok) {
-        // Auto print receipt (relies on OS printer default; set thermal printer as default or choose on dialog)
-        triggerPrint(cartSnapshot);
+        // Auto print receipt if enabled
+        if (!receiptSettings || receiptSettings.autoPrint) {
+          triggerPrint(cartSnapshot);
+        }
 
         // Clear cart and show success
         setCart([]);
