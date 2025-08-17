@@ -352,7 +352,7 @@ export default function ProductImportPage() {
 
       // Convert column mapping to string mapping
       const stringColumnMapping: Record<string, string> = {};
-      if (columnMapping && typeof columnMapping === 'object') {
+      if (columnMapping && typeof columnMapping === 'object' && Object.keys(columnMapping).length > 0) {
         Object.entries(columnMapping).forEach(([key, value]) => {
           if (value) stringColumnMapping[key] = value;
         });
