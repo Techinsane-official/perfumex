@@ -141,9 +141,13 @@ export function validateImportData(
       }
     } catch (error) {
       if (error instanceof z.ZodError) {
-        (error as z.ZodError).errors.forEach((err: any) => {
-          errors.push(err.message);
-        });
+        if (error.errors && Array.isArray(error.errors)) {
+          error.errors.forEach((err: any) => {
+            if (err && err.message) {
+              errors.push(err.message);
+            }
+          });
+        }
       } else {
         errors.push("Onbekende validatiefout");
       }

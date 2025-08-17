@@ -64,45 +64,47 @@ export default function ColumnMappingUI({
   const autoMapColumns = () => {
     const autoMapping: ColumnMapping = {};
     
-    csvHeaders.forEach(header => {
-      const lowerHeader = header.toLowerCase();
-      
-      // Try to find exact matches first
-      const exactMatch = CANONICAL_FIELDS.find(field => 
-        lowerHeader.includes(field.key.toLowerCase()) ||
-        field.key.toLowerCase().includes(lowerHeader)
-      );
-      
-      if (exactMatch) {
-        autoMapping[exactMatch.key] = header;
-        return;
-      }
-      
-      // Try partial matches
-      if (lowerHeader.includes('brand') || lowerHeader.includes('merk')) {
-        autoMapping.brand = header;
-      } else if (lowerHeader.includes('name') || lowerHeader.includes('product') || lowerHeader.includes('title')) {
-        autoMapping.productName = header;
-      } else if (lowerHeader.includes('size') || lowerHeader.includes('ml') || lowerHeader.includes('volume')) {
-        autoMapping.variantSize = header;
-      } else if (lowerHeader.includes('ean') || lowerHeader.includes('barcode')) {
-        autoMapping.ean = header;
-      } else if (lowerHeader.includes('price') || lowerHeader.includes('cost')) {
-        autoMapping.wholesalePrice = header;
-      } else if (lowerHeader.includes('currency') || lowerHeader.includes('curr')) {
-        autoMapping.currency = header;
-      } else if (lowerHeader.includes('pack') || lowerHeader.includes('quantity') || lowerHeader.includes('qty')) {
-        autoMapping.packSize = header;
-      } else if (lowerHeader.includes('supplier') || lowerHeader.includes('vendor')) {
-        autoMapping.supplierName = header;
-      } else if (lowerHeader.includes('purchase') || lowerHeader.includes('buy')) {
-        autoMapping.lastPurchasePrice = header;
-      } else if (lowerHeader.includes('stock') || lowerHeader.includes('available') || lowerHeader.includes('inventory')) {
-        autoMapping.availability = header;
-      } else if (lowerHeader.includes('note') || lowerHeader.includes('comment') || lowerHeader.includes('desc')) {
-        autoMapping.notes = header;
-      }
-    });
+    if (csvHeaders && Array.isArray(csvHeaders)) {
+      csvHeaders.forEach(header => {
+        const lowerHeader = header.toLowerCase();
+        
+        // Try to find exact matches first
+        const exactMatch = CANONICAL_FIELDS.find(field => 
+          lowerHeader.includes(field.key.toLowerCase()) ||
+          field.key.toLowerCase().includes(lowerHeader)
+        );
+        
+        if (exactMatch) {
+          autoMapping[exactMatch.key] = header;
+          return;
+        }
+        
+        // Try partial matches
+        if (lowerHeader.includes('brand') || lowerHeader.includes('merk')) {
+          autoMapping.brand = header;
+        } else if (lowerHeader.includes('name') || lowerHeader.includes('product') || lowerHeader.includes('title')) {
+          autoMapping.productName = header;
+        } else if (lowerHeader.includes('size') || lowerHeader.includes('ml') || lowerHeader.includes('volume')) {
+          autoMapping.variantSize = header;
+        } else if (lowerHeader.includes('ean') || lowerHeader.includes('barcode')) {
+          autoMapping.ean = header;
+        } else if (lowerHeader.includes('price') || lowerHeader.includes('cost')) {
+          autoMapping.wholesalePrice = header;
+        } else if (lowerHeader.includes('currency') || lowerHeader.includes('curr')) {
+          autoMapping.currency = header;
+        } else if (lowerHeader.includes('pack') || lowerHeader.includes('quantity') || lowerHeader.includes('qty')) {
+          autoMapping.packSize = header;
+        } else if (lowerHeader.includes('supplier') || lowerHeader.includes('vendor')) {
+          autoMapping.supplierName = header;
+        } else if (lowerHeader.includes('purchase') || lowerHeader.includes('buy')) {
+          autoMapping.lastPurchasePrice = header;
+        } else if (lowerHeader.includes('stock') || lowerHeader.includes('available') || lowerHeader.includes('inventory')) {
+          autoMapping.availability = header;
+        } else if (lowerHeader.includes('note') || lowerHeader.includes('comment') || lowerHeader.includes('desc')) {
+          autoMapping.notes = header;
+        }
+      });
+    }
     
     setMapping(autoMapping);
     setAutoMapped(true);
