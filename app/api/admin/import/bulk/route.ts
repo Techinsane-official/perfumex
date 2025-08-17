@@ -167,30 +167,32 @@ async function processBatch(
   const errors: ImportError[] = [];
   const warnings: ImportWarning[] = [];
 
-  results.forEach((result, index) => {
-    if (result.status === "fulfilled" && result.value) {
-      if (result.value.success) {
-        successful++;
-      } else {
+  if (results && Array.isArray(results)) {
+    results.forEach((result, index) => {
+      if (result && result.status === "fulfilled" && result.value) {
+        if (result.value.success) {
+          successful++;
+        } else {
+          failed++;
+          if (result.value.error) {
+            errors.push(result.value.error);
+          }
+          if (result.value.warning) {
+            warnings.push(result.value.warning);
+          }
+        }
+      } else if (result && result.status === "rejected") {
         failed++;
-        if (result.value.error) {
-          errors.push(result.value.error);
-        }
-        if (result.value.warning) {
-          warnings.push(result.value.warning);
-        }
+        const batchItem = index < batch.length ? batch[index] : {};
+        errors.push({
+          row: startIndex + index + 1,
+          field: "unknown",
+          message: result.reason?.message || "Onbekende fout",
+          data: batchItem || {},
+        });
       }
-    } else if (result.status === "rejected") {
-      failed++;
-      const batchItem = index < batch.length ? batch[index] : {};
-      errors.push({
-        row: startIndex + index + 1,
-        field: "unknown",
-        message: result.reason?.message || "Onbekende fout",
-        data: batchItem || {},
-      });
-    }
-  });
+    });
+  }
 
   return { successful, failed, errors, warnings };
 }
