@@ -31,17 +31,26 @@ interface ProductRow {
 }
 
 export async function POST(request: NextRequest) {
+  console.log("🚀 Bulk import API called");
   try {
     // Check authentication
+    console.log("🔐 Checking authentication...");
     const session = await auth();
+    console.log("🔐 Session:", session ? { user: session.user?.username, role: session.user?.role } : "No session");
+    
     if (!session || session.user?.role !== "ADMIN") {
+      console.log("❌ Authentication failed - no session or not admin");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    console.log("✅ Authentication successful");
 
+    console.log("📁 Reading form data...");
     const formData = await request.formData();
     const file = formData.get("file") as File;
+    console.log("📁 File received:", file ? { name: file.name, size: file.size, type: file.type } : "No file");
 
     if (!file) {
+      console.log("❌ No file provided");
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
@@ -79,21 +88,31 @@ export async function POST(request: NextRequest) {
     await writeFile(tempPath, buffer);
 
     // Parse file
+    console.log("📊 Starting file parsing...");
     let rows: any[] = [];
     try {
+      console.log("📊 File type detection:", { type: file.type, extension: fileExtension, isCSV, isExcel });
+      
       if (isCSV || file.type === "text/csv") {
+        console.log("📊 Parsing as CSV...");
         // For CSV files, use proper CSV parsing
         const csvText = buffer.toString('utf-8');
+        console.log("📊 CSV text length:", csvText.length);
         const workbook = XLSX.read(csvText, { type: 'string' });
+        console.log("📊 CSV workbook sheets:", workbook.SheetNames);
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         rows = XLSX.utils.sheet_to_json(worksheet);
+        console.log("📊 CSV parsed rows:", rows.length);
       } else if (isExcel || file.type.includes("excel") || file.type.includes("spreadsheet")) {
+        console.log("📊 Parsing as Excel...");
         // For Excel files
         const workbook = XLSX.read(buffer, { type: "buffer" });
+        console.log("📊 Excel workbook sheets:", workbook.SheetNames);
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         rows = XLSX.utils.sheet_to_json(worksheet);
+        console.log("📊 Excel parsed rows:", rows.length);
       } else {
         throw new Error(`Unsupported file type: ${file.type} (extension: ${fileExtension})`);
       }
@@ -278,12 +297,29 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Bulk import error:", error);
-    console.error("Error details:", {
+    console.error("💥 Bulk import error:", error);
+    console.error("💥 Error details:", {
       name: error instanceof Error ? error.name : 'Unknown',
       message: error instanceof Error ? error.message : 'Unknown error',
       stack: error instanceof Error ? error.stack : 'No stack trace'
     });
+    
+    // More specific error handling
+    if (error instanceof Error) {
+      if (error.message.includes('auth')) {
+        console.error("💥 Authentication related error");
+        return NextResponse.json({ error: "Authentication error", details: error.message }, { status: 401 });
+      }
+      if (error.message.includes('database') || error.message.includes('prisma')) {
+        console.error("💥 Database related error");
+        return NextResponse.json({ error: "Database error", details: error.message }, { status: 500 });
+      }
+      if (error.message.includes('file') || error.message.includes('parse')) {
+        console.error("💥 File parsing related error");
+        return NextResponse.json({ error: "File parsing error", details: error.message }, { status: 400 });
+      }
+    }
+    
     return NextResponse.json(
       { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
