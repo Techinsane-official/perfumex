@@ -247,6 +247,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { data, columnMapping } = importRequestSchema.parse(body);
 
+    // Log column mapping and data structure for debugging
+    console.log("🔧 Column mapping received:", columnMapping);
+    if (data.length > 0) {
+      const availableColumns = Object.keys(data[0]);
+      console.log("📋 Available columns in data:", availableColumns);
+      console.log("🔍 Looking for required columns: name, brand, content, ean, purchasePrice, retailPrice, stockQuantity");
+      
+      // Check which required columns are missing
+      const requiredColumns = ["name", "brand", "content", "ean", "purchasePrice", "retailPrice", "stockQuantity"];
+      const missingColumns = requiredColumns.filter(col => !availableColumns.includes(col));
+      if (missingColumns.length > 0) {
+        console.log("❌ Missing required columns:", missingColumns);
+      } else {
+        console.log("✅ All required columns found");
+      }
+    }
+
     const startTime = Date.now();
     const batchSize = 50;
     let totalSuccessful = 0;

@@ -123,6 +123,22 @@ export async function POST(request: NextRequest) {
 
     console.log("Parsed rows:", rows.length);
     console.log("First row sample:", rows[0]);
+    
+    // Log all available columns to help with debugging
+    if (rows.length > 0) {
+      const availableColumns = Object.keys(rows[0]);
+      console.log("📋 Available columns in file:", availableColumns);
+      console.log("🔍 Looking for required columns: name, brand, content, ean, purchasePrice, retailPrice, stockQuantity");
+      
+      // Check which required columns are missing
+      const requiredColumns = ["name", "brand", "content", "ean", "purchasePrice", "retailPrice", "stockQuantity"];
+      const missingColumns = requiredColumns.filter(col => !availableColumns.includes(col));
+      if (missingColumns.length > 0) {
+        console.log("❌ Missing required columns:", missingColumns);
+      } else {
+        console.log("✅ All required columns found");
+      }
+    }
 
     const results: ImportResult[] = [];
     let successCount = 0;
