@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Card, { CardContent, CardHeader, CardTitle } from '@/components/ui/Card';
@@ -16,7 +15,31 @@ import {
   AlertCircle,
   X
 } from 'lucide-react';
-import { ColumnMapping, SupplierMappingTemplate } from '@/lib/scraping/types';
+
+// Define the types locally to avoid import issues
+interface ColumnMapping {
+  brand?: string;
+  productName?: string;
+  variantSize?: string;
+  ean?: string;
+  wholesalePrice?: string;
+  currency?: string;
+  packSize?: string;
+  supplier?: string;
+  lastPurchasePrice?: string;
+  availability?: string;
+  notes?: string;
+  [key: string]: string | undefined;
+}
+
+interface SupplierMappingTemplate {
+  id: string;
+  supplierId: string;
+  name: string;
+  isDefault: boolean;
+  columnMappings: ColumnMapping;
+  dataCleaningRules: Record<string, any>;
+}
 
 interface ColumnMappingUIProps {
   csvHeaders: string[];
@@ -34,7 +57,7 @@ const CANONICAL_FIELDS = [
   { key: 'wholesalePrice', label: 'Wholesale Price', required: true, description: 'Supplier price' },
   { key: 'currency', label: 'Currency', required: true, description: 'Price currency' },
   { key: 'packSize', label: 'Pack Size', required: false, description: 'Quantity per pack' },
-  { key: 'supplierName', label: 'Supplier Name', required: true, description: 'Supplier identifier' },
+  { key: 'supplier', label: 'Supplier Name', required: true, description: 'Supplier identifier' },
   { key: 'lastPurchasePrice', label: 'Last Purchase Price', required: false, description: 'Previous purchase price' },
   { key: 'availability', label: 'Availability', required: false, description: 'Stock status' },
   { key: 'notes', label: 'Notes', required: false, description: 'Additional information' }
@@ -56,10 +79,10 @@ export default function ColumnMappingUI({
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
 
   useEffect(() => {
-    if (csvHeaders.length > 0 && !autoMapped) {
+    if (csvHeaders && csvHeaders.length > 0 && !autoMapped) {
       autoMapColumns();
     }
-  }, [csvHeaders]);
+  }, [csvHeaders, autoMapped]);
 
   const autoMapColumns = () => {
     const autoMapping: ColumnMapping = {};
@@ -95,7 +118,7 @@ export default function ColumnMappingUI({
         } else if (lowerHeader.includes('pack') || lowerHeader.includes('quantity') || lowerHeader.includes('qty')) {
           autoMapping.packSize = header;
         } else if (lowerHeader.includes('supplier') || lowerHeader.includes('vendor')) {
-          autoMapping.supplierName = header;
+          autoMapping.supplier = header;
         } else if (lowerHeader.includes('purchase') || lowerHeader.includes('buy')) {
           autoMapping.lastPurchasePrice = header;
         } else if (lowerHeader.includes('stock') || lowerHeader.includes('available') || lowerHeader.includes('inventory')) {
@@ -142,9 +165,7 @@ export default function ColumnMappingUI({
       name: templateName,
       isDefault: false,
       columnMappings: mapping,
-      dataCleaningRules: {},
-      createdAt: new Date(),
-      updatedAt: new Date()
+      dataCleaningRules: {}
     };
     
     if (onSaveTemplate) onSaveTemplate(template);
@@ -197,7 +218,12 @@ export default function ColumnMappingUI({
               <label className="block text-sm font-medium text-gray-700">Load Template:</label>
               <div className="flex flex-wrap gap-2">
                 {savedTemplates.map(template => (
-                  <Button key={template.id} variant={selectedTemplate === template.id ? 'primary' : 'outline'} size="sm" onClick={() => loadTemplate(template.id)}>
+                  <Button 
+                    key={template.id} 
+                    variant={selectedTemplate === template.id ? 'primary' : 'outline'} 
+                    size="sm" 
+                    onClick={() => loadTemplate(template.id)}
+                  >
                     {template.name}
                   </Button>
                 ))}
@@ -224,14 +250,14 @@ export default function ColumnMappingUI({
             <div>
               <label className="text-sm font-medium text-gray-700">CSV Headers (Source)</label>
               <div className="mt-2 space-y-2">
-                                 {csvHeaders.map((header, index) => (
-                   <div
-                     key={index}
-                     className="p-3 border rounded-lg bg-gray-50 text-sm font-mono"
-                   >
-                     {header}
-                   </div>
-                 ))}
+                {csvHeaders && csvHeaders.map((header, index) => (
+                  <div
+                    key={index}
+                    className="p-3 border rounded-lg bg-gray-50 text-sm font-mono"
+                  >
+                    {header}
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -269,11 +295,11 @@ export default function ColumnMappingUI({
                       )}
                     </div>
                     
-                                         <datalist id={`options-${field.key}`}>
-                       {csvHeaders.map((header, index) => (
-                         <option key={index} value={header} />
-                       ))}
-                     </datalist>
+                    <datalist id={`options-${field.key}`}>
+                      {csvHeaders && csvHeaders.map((header, index) => (
+                        <option key={index} value={header} />
+                      ))}
+                    </datalist>
                     
                     <p className="text-xs text-gray-500">{field.description}</p>
                   </div>
