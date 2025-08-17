@@ -30,100 +30,95 @@ interface ProductRow {
 
 export async function POST(request: NextRequest) {
   console.log("🚀 Bulk import API called");
+  
   try {
     // Check authentication
     console.log("🔐 Checking authentication...");
     const session = await auth();
-    console.log("🔐 Session:", session ? { user: session.user?.username, role: session.user?.role } : "No session");
     
     if (!session || session.user?.role !== "ADMIN") {
       console.log("❌ Authentication failed - no session or not admin");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+    
+    console.log("🔐 Session:", session ? { user: session.user?.username, role: session.user?.role } : "No session");
+    
     console.log("✅ Authentication successful");
-
+    
+    // Parse form data
     console.log("📁 Reading form data...");
     const formData = await request.formData();
     const file = formData.get("file") as File;
-    console.log("📁 File received:", file ? { name: file.name, size: file.size, type: file.type } : "No file");
-
+    
     if (!file) {
       console.log("❌ No file provided");
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
-
+    
+    console.log("📁 File received:", {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      lastModified: file.lastModified
+    });
+    
     // Validate file type
     const validTypes = [
       "text/csv",
       "application/vnd.ms-excel",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ];
-
-    // Get file extension as fallback for file type detection
-    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
     const isCSV = fileExtension === 'csv';
     const isExcel = fileExtension === 'xlsx' || fileExtension === 'xls';
-
+    
     if (!validTypes.includes(file.type) && !isCSV && !isExcel) {
       return NextResponse.json(
         { error: "Invalid file type. Only CSV and Excel files are allowed." },
         { status: 400 }
       );
     }
-
-    // Process file directly in memory (no temp file needed for serverless)
+    
+    console.log("✅ File type validation passed");
+    
+    // Process file in memory
     console.log("💾 Processing file in memory...");
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     console.log("💾 File buffer created:", buffer.length, "bytes");
-
-    // Parse file
+    
+    // Parse file based on type
     console.log("📊 Starting file parsing...");
     let rows: any[] = [];
-    try {
-      console.log("📊 File type detection:", { type: file.type, extension: fileExtension, isCSV, isExcel });
-      
-      if (isCSV || file.type === "text/csv") {
-        console.log("📊 Parsing as CSV...");
-        // For CSV files, use proper CSV parsing
-        const csvText = buffer.toString('utf-8');
-        console.log("📊 CSV text length:", csvText.length);
-        const workbook = XLSX.read(csvText, { type: 'string' });
-        console.log("📊 CSV workbook sheets:", workbook.SheetNames);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        rows = XLSX.utils.sheet_to_json(worksheet);
-        console.log("📊 CSV parsed rows:", rows.length);
-      } else if (isExcel || file.type.includes("excel") || file.type.includes("spreadsheet")) {
-        console.log("📊 Parsing as Excel...");
-        // For Excel files
-        const workbook = XLSX.read(buffer, { type: "buffer" });
-        console.log("📊 Excel workbook sheets:", workbook.SheetNames);
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        rows = XLSX.utils.sheet_to_json(worksheet);
-        console.log("📊 Excel parsed rows:", rows.length);
-      } else {
-        throw new Error(`Unsupported file type: ${file.type} (extension: ${fileExtension})`);
-      }
-    } catch (error) {
-      console.error("File parsing error:", error);
-      return NextResponse.json(
-        { error: `Failed to parse file: ${error instanceof Error ? error.message : "Unknown error"}. Please check the file format.` },
-        { status: 400 }
-      );
-    }
-
-    if (rows.length === 0) {
-      return NextResponse.json(
-        { error: "No data found in file." },
-        { status: 400 }
-      );
-    }
-
-    console.log("Parsed rows:", rows.length);
-    console.log("First row sample:", rows[0]);
     
+    if (isCSV || file.type === "text/csv") {
+      console.log("📊 Parsing as CSV...");
+      const csvText = buffer.toString('utf-8');
+      console.log("📊 CSV text length:", csvText.length);
+      
+      const workbook = XLSX.read(csvText, { type: 'string' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      rows = XLSX.utils.sheet_to_json(worksheet);
+    } else if (isExcel || file.type.includes("excel") || file.type.includes("spreadsheet")) {
+      console.log("📊 Parsing as Excel...");
+      const workbook = XLSX.read(buffer, { type: "buffer" });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      rows = XLSX.utils.sheet_to_json(worksheet);
+    }
+    
+    console.log("📊 Parsed rows:", rows.length);
+    if (rows.length > 0) {
+      console.log("📊 First row sample:", rows[0]);
+    }
+    
+    if (rows.length === 0) {
+      console.log("❌ No data rows found in file");
+      return NextResponse.json({ error: "No data rows found in file" }, { status: 400 });
+    }
+
     // Log all available columns to help with debugging
     if (rows.length > 0) {
       const availableColumns = Object.keys(rows[0]);
@@ -165,50 +160,57 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        // Validate EAN uniqueness
-        let existingProduct = null;
-        let eanString = ""; // Declare eanString in the correct scope
+        // Validate EAN before database query - accept both string and number types
+        let eanValue = row.ean;
+        if (eanValue === undefined || eanValue === null) {
+          console.log(`⚠️ Row ${rowNumber}: Missing EAN value`);
+          results.push({
+            success: false,
+            message: "EAN is required and cannot be empty",
+            row: rowNumber,
+            field: "ean",
+          });
+          errorCount++;
+          continue;
+        }
         
+        // Convert EAN to string and clean it
+        let eanString = eanValue.toString().trim();
+        
+        // Remove any non-digit characters (spaces, dashes, etc.)
+        eanString = eanString.replace(/\D/g, '');
+        
+        if (eanString === '' || eanString.length !== 13 || !/^\d{13}$/.test(eanString)) {
+          console.log(`⚠️ Row ${rowNumber}: Invalid EAN format:`, { 
+            original: eanValue, 
+            cleaned: eanString, 
+            length: eanString.length 
+          });
+          results.push({
+            success: false,
+            message: `EAN must be exactly 13 digits, got: ${eanString} (${eanString.length} characters)`,
+            row: rowNumber,
+            field: "ean",
+          });
+          errorCount++;
+          continue;
+        }
+        
+        console.log(`🔍 Row ${rowNumber}: Checking EAN uniqueness for: ${eanString}`);
+        
+        // Check if product already exists
+        let existingProduct;
         try {
-          // Validate EAN before database query - accept both string and number types
-          let eanValue = row.ean;
-          if (eanValue === undefined || eanValue === null) {
-            console.log(`⚠️ Row ${rowNumber}: Missing EAN value`);
-            results.push({
-              success: false,
-              message: "EAN is required and cannot be empty",
-              row: rowNumber,
-              field: "ean",
-            });
-            errorCount++;
-            continue;
-          }
-
-          // Convert EAN to string and validate format
-          eanString = eanValue.toString().trim();
-          if (eanString === '' || eanString.length !== 13 || !/^\d{13}$/.test(eanString)) {
-            console.log(`⚠️ Row ${rowNumber}: Invalid EAN format:`, { ean: eanValue, eanString, length: eanString.length });
-            results.push({
-              success: false,
-              message: `EAN must be exactly 13 digits, got: ${eanString} (${eanString.length} characters)`,
-              row: rowNumber,
-              field: "ean",
-            });
-            errorCount++;
-            continue;
-          }
-
-          console.log(`🔍 Row ${rowNumber}: Checking EAN uniqueness for: ${eanString}`);
           existingProduct = await prisma.product.findUnique({
             where: { ean: eanString },
           });
         } catch (dbError) {
-          console.error(`Database error checking EAN ${row.ean}:`, dbError);
+          console.error(`Database error checking EAN ${eanString} for row ${rowNumber}:`, dbError);
           results.push({
             success: false,
-            message: `Database error checking EAN: ${dbError instanceof Error ? dbError.message : "Unknown error"}`,
+            message: `Database error checking EAN: ${dbError instanceof Error ? dbError.message : 'Unknown error'}`,
             row: rowNumber,
-            field: "ean",
+            field: "database",
           });
           errorCount++;
           continue;
