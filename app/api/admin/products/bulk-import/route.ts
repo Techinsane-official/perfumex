@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import * as XLSX from "xlsx";
-import { Decimal } from "@prisma/client/runtime/library";
+import { Decimal } from "decimal.js";
 
 interface ImportResult {
   success: boolean;
@@ -105,6 +105,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    console.log("Parsed rows:", rows.length);
+    console.log("First row sample:", rows[0]);
+
     const results: ImportResult[] = [];
     let successCount = 0;
     let errorCount = 0;
@@ -164,6 +167,16 @@ export async function POST(request: NextRequest) {
         // Parse tags
         const tags = row.tags ? row.tags.split(",").map((tag: string) => tag.trim()) : [];
 
+        console.log(`Creating product for row ${rowNumber}:`, {
+          name: row.name,
+          brand: row.brand,
+          content: row.content,
+          ean: row.ean,
+          purchasePrice: row.purchasePrice,
+          retailPrice: row.retailPrice,
+          stockQuantity: row.stockQuantity
+        });
+
         // Create product with proper Decimal types
         const product = await prisma.product.create({
           data: {
@@ -184,6 +197,8 @@ export async function POST(request: NextRequest) {
             isActive: true,
           },
         });
+
+        console.log(`Product created successfully:`, product.id);
 
         results.push({
           success: true,
@@ -220,8 +235,13 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Bulk import error:", error);
+    console.error("Error details:", {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error instanceof Error ? error.message : "Unknown error" },
       { status: 500 }
     );
   }
