@@ -53,10 +53,12 @@ Your current Excel file only has a `Brand` column, but the system needs **7 requ
 
 ### **EAN Codes**
 - Must be **exactly 13 digits**
+- **Must be quoted as strings** in CSV (e.g., `"1234567890123"`)
 - No spaces, dashes, or letters
 - Must be unique for each product
-- Example: `1234567890123` ✅
-- Example: `123-456-789-0123` ❌
+- Example: `"1234567890123"` ✅
+- Example: `1234567890123` ❌ (will be parsed as number)
+- Example: `"123-456-789-0123"` ❌
 
 ### **Prices**
 - Use **decimal format** (e.g., `25.50`)
