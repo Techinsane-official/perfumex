@@ -544,7 +544,7 @@ export default function PriceScanPage() {
               )}
             </Card>
 
-            {scanResults.length > 0 && <PriceResultsTable results={scanResults} />}
+            {scanResults.length > 0 && <PriceResultsTable results={scanResults} normalizedProducts={normalizedProducts} />}
           </div>
         )}
       </div>

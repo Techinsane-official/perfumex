@@ -15,31 +15,7 @@ import {
   AlertCircle,
   X
 } from 'lucide-react';
-
-// Define the types locally to avoid import issues
-interface ColumnMapping {
-  brand?: string;
-  productName?: string;
-  variantSize?: string;
-  ean?: string;
-  wholesalePrice?: string;
-  currency?: string;
-  packSize?: string;
-  supplier?: string;
-  lastPurchasePrice?: string;
-  availability?: string;
-  notes?: string;
-  [key: string]: string | undefined;
-}
-
-interface SupplierMappingTemplate {
-  id: string;
-  supplierId: string;
-  name: string;
-  isDefault: boolean;
-  columnMappings: ColumnMapping;
-  dataCleaningRules: Record<string, any>;
-}
+import { ColumnMapping, SupplierMappingTemplate } from '@/lib/scraping/types';
 
 interface ColumnMappingUIProps {
   csvHeaders: string[];
@@ -52,10 +28,10 @@ interface ColumnMappingUIProps {
 const CANONICAL_FIELDS = [
   { key: 'brand', label: 'Brand', required: true, description: 'Product brand name' },
   { key: 'productName', label: 'Product Name', required: true, description: 'Product name/title' },
-  { key: 'variantSize', label: 'Variant/Size (ml)', required: true, description: 'Size in milliliters' },
+  { key: 'variantSize', label: 'Variant/Size (ml)', required: false, description: 'Size in milliliters (optional)' },
   { key: 'ean', label: 'EAN', required: false, description: 'European Article Number' },
   { key: 'wholesalePrice', label: 'Wholesale Price', required: true, description: 'Supplier price' },
-  { key: 'currency', label: 'Currency', required: true, description: 'Price currency' },
+  { key: 'currency', label: 'Currency', required: false, description: 'Price currency (defaults to EUR if not provided)' },
   { key: 'packSize', label: 'Pack Size', required: false, description: 'Quantity per pack' },
   { key: 'supplier', label: 'Supplier Name', required: true, description: 'Supplier identifier' },
   { key: 'lastPurchasePrice', label: 'Last Purchase Price', required: false, description: 'Previous purchase price' },
@@ -71,12 +47,18 @@ export default function ColumnMappingUI({
   supplierName = ''
 }: ColumnMappingUIProps) {
   
-  const [mapping, setMapping] = useState<ColumnMapping>({});
+  const [mapping, setMapping] = useState<ColumnMapping>({
+    brand: '',
+    productName: '',
+    wholesalePrice: '',
+    supplier: ''
+  });
   const [autoMapped, setAutoMapped] = useState<boolean>(false);
   const [showPreview, setShowPreview] = useState<boolean>(false);
   const [previewData, setPreviewData] = useState<any[]>([]);
   const [templateName, setTemplateName] = useState<string>('');
   const [selectedTemplate, setSelectedTemplate] = useState<string>('');
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (csvHeaders && csvHeaders.length > 0 && !autoMapped) {
@@ -85,7 +67,12 @@ export default function ColumnMappingUI({
   }, [csvHeaders, autoMapped]);
 
   const autoMapColumns = () => {
-    const autoMapping: ColumnMapping = {};
+    const autoMapping: ColumnMapping = {
+      brand: '',
+      productName: '',
+      wholesalePrice: '',
+      supplier: ''
+    };
     
     if (csvHeaders && Array.isArray(csvHeaders)) {
       csvHeaders.forEach(header => {
@@ -98,7 +85,7 @@ export default function ColumnMappingUI({
         );
         
         if (exactMatch) {
-          autoMapping[exactMatch.key] = header;
+          autoMapping[exactMatch.key as keyof ColumnMapping] = header;
           return;
         }
         
@@ -133,14 +120,14 @@ export default function ColumnMappingUI({
     setAutoMapped(true);
   };
 
-  const handleMappingChange = (canonicalField: string, csvHeader: string) => {
+  const handleMappingChange = (canonicalField: keyof ColumnMapping, csvHeader: string) => {
     setMapping(prev => ({
       ...prev,
       [canonicalField]: csvHeader
     }));
   };
 
-  const clearMapping = (canonicalField: string) => {
+  const clearMapping = (canonicalField: keyof ColumnMapping) => {
     setMapping(prev => {
       const newMapping = { ...prev };
       delete newMapping[canonicalField];
@@ -149,32 +136,50 @@ export default function ColumnMappingUI({
   };
 
   const loadTemplate = (templateId: string) => {
-    const template = savedTemplates.find(t => t.id === templateId);
-    if (template) {
-      setMapping(template.columnMappings);
-      setSelectedTemplate(templateId);
+    try {
+      const template = savedTemplates.find(t => t.id === templateId);
+      if (template) {
+        setMapping(template.columnMappings);
+        setSelectedTemplate(templateId);
+        setError(null);
+      } else {
+        setError('Template not found');
+      }
+    } catch (err) {
+      setError('Failed to load template');
     }
   };
 
   const saveTemplate = () => {
-    if (!templateName.trim()) return;
-    
-    const template: SupplierMappingTemplate = {
-      id: Date.now().toString(),
-      supplierId: '',
-      name: templateName,
-      isDefault: false,
-      columnMappings: mapping,
-      dataCleaningRules: {}
-    };
-    
-    if (onSaveTemplate) onSaveTemplate(template);
-    setTemplateName('');
+    try {
+      if (!templateName.trim()) {
+        setError('Template name is required');
+        return;
+      }
+      
+      const template: SupplierMappingTemplate = {
+        id: Date.now().toString(),
+        supplierId: '',
+        name: templateName,
+        description: `Template for ${supplierName || 'supplier'}`,
+        isDefault: false,
+        columnMappings: mapping,
+        dataCleaningRules: {}
+      };
+      
+      if (onSaveTemplate) {
+        onSaveTemplate(template);
+        setTemplateName('');
+        setError(null);
+      }
+    } catch (err) {
+      setError('Failed to save template');
+    }
   };
 
   const validateMapping = () => {
     const requiredFields = CANONICAL_FIELDS.filter(field => field.required);
-    const missingFields = requiredFields.filter(field => !mapping[field.key]);
+    const missingFields = requiredFields.filter(field => !mapping[field.key as keyof ColumnMapping]);
     
     return {
       isValid: missingFields.length === 0,
@@ -183,9 +188,29 @@ export default function ColumnMappingUI({
   };
 
   const handleComplete = () => {
-    const validation = validateMapping();
-    if (validation.isValid) {
-      onMappingComplete(mapping);
+    try {
+      const validation = validateMapping();
+      if (validation.isValid) {
+        onMappingComplete(mapping);
+        setError(null);
+      } else {
+        setError('Please complete all required field mappings');
+      }
+    } catch (err) {
+      setError('Failed to complete mapping');
+    }
+  };
+
+  const handlePreviewToggle = () => {
+    setShowPreview(!showPreview);
+    if (!showPreview && csvHeaders.length > 0) {
+      // Generate sample preview data
+      const sampleData = csvHeaders.slice(0, 3).map((header, index) => ({
+        header,
+        sampleValue: `Sample ${index + 1}`,
+        mappedField: Object.entries(mapping).find(([key, value]) => value === header)?.[0] || 'Not mapped'
+      }));
+      setPreviewData(sampleData);
     }
   };
 
@@ -193,6 +218,25 @@ export default function ColumnMappingUI({
 
   return (
     <div className="space-y-6">
+      {/* Error Display */}
+      {error && (
+        <div className="p-4 border border-red-200 bg-red-50 rounded-lg">
+          <div className="flex items-center gap-2 text-red-700">
+            <AlertCircle className="h-5 w-5" />
+            <span className="font-medium">Error:</span>
+            <span>{error}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setError(null)}
+              className="ml-auto"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Template Management */}
       <Card>
         <CardHeader>
@@ -222,7 +266,7 @@ export default function ColumnMappingUI({
                     key={template.id} 
                     variant={selectedTemplate === template.id ? 'primary' : 'outline'} 
                     size="sm" 
-                    onClick={() => loadTemplate(template.id)}
+                    onClick={() => template.id && loadTemplate(template.id)}
                   >
                     {template.name}
                   </Button>
@@ -272,7 +316,7 @@ export default function ColumnMappingUI({
                         {field.label}
                         {field.required && <span className="text-red-500 ml-1">*</span>}
                       </label>
-                      {mapping[field.key] && (
+                      {mapping[field.key as keyof ColumnMapping] && (
                         <CheckCircle className="h-4 w-4 text-green-500" />
                       )}
                     </div>
@@ -280,15 +324,15 @@ export default function ColumnMappingUI({
                     <div className="flex gap-2">
                       <Input
                         placeholder="Select CSV column"
-                        value={mapping[field.key] || ''}
-                        onChange={(e) => handleMappingChange(field.key, e.target.value)}
+                        value={mapping[field.key as keyof ColumnMapping] || ''}
+                        onChange={(e) => handleMappingChange(field.key as keyof ColumnMapping, e.target.value)}
                         list={`options-${field.key}`}
                       />
-                      {mapping[field.key] && (
+                      {mapping[field.key as keyof ColumnMapping] && (
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => clearMapping(field.key)}
+                          onClick={() => clearMapping(field.key as keyof ColumnMapping)}
                         >
                           <X className="h-4 w-4" />
                         </Button>
@@ -309,6 +353,30 @@ export default function ColumnMappingUI({
           </div>
         </CardContent>
       </Card>
+
+      {/* Preview Section */}
+      {showPreview && previewData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Preview
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {previewData.map((item, index) => (
+                <div key={index} className="flex items-center gap-4 p-2 border rounded">
+                  <span className="font-medium">{item.header}</span>
+                  <span className="text-gray-600">→</span>
+                  <span className="text-blue-600">{item.mappedField}</span>
+                  <span className="text-gray-400">({item.sampleValue})</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Validation & Actions */}
       <Card>
@@ -338,7 +406,7 @@ export default function ColumnMappingUI({
             
             <Button
               variant="outline"
-              onClick={() => setShowPreview(!showPreview)}
+              onClick={handlePreviewToggle}
             >
               {showPreview ? <EyeOff className="h-4 w-4 mr-2" /> : <Eye className="h-4 w-4 mr-2" />}
               Preview Data
