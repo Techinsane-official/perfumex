@@ -12,6 +12,7 @@ import {
   PriceScrapingResult,
   ScrapingSource 
 } from '@/lib/scraping/types';
+import { Decimal } from '@prisma/client/runtime/library';
 
 type PriceScanStep = 'config' | 'scanning' | 'results';
 
@@ -37,13 +38,11 @@ export default function PriceScanPage() {
   const [selectedSources, setSelectedSources] = useState<string[]>([]);
   const [scanConfig, setScanConfig] = useState<ScrapingJobConfig>({
     sources: [],
-    priority: 'NORMAL',
     batchSize: 10,
     delayBetweenBatches: 5000,
     maxRetries: 3,
-    confidenceThreshold: 0.7
+    timeout: 30000
   });
-  const [isScanning, setIsScanning] = useState(false);
   const [currentJob, setCurrentJob] = useState<ScrapingJob | null>(null);
   const [scanResults, setScanResults] = useState<PriceScrapingResult[]>([]);
   const [scanProgress, setScanProgress] = useState(0);
@@ -90,9 +89,17 @@ export default function PriceScanPage() {
           isActive: s.isActive,
           priority: s.priority,
           rateLimit: s.rateLimit,
+          config: s.config || {
+            selectors: {
+              productTitle: '',
+              price: '',
+              availability: '',
+              shipping: ''
+            }
+          }
         }));
         setScrapingSources(mapped);
-        const activeIds = mapped.filter(s => s.isActive).map(s => s.id);
+        const activeIds = mapped.filter((s: any) => s.isActive).map((s: any) => s.id);
         if (activeIds.length > 0) {
           setSelectedSources((prev) => prev.length ? prev : activeIds);
         }
@@ -120,7 +127,6 @@ export default function PriceScanPage() {
       return;
     }
 
-    setIsScanning(true);
     setCurrentStep('scanning');
     setScanProgress(0);
 
@@ -134,7 +140,6 @@ export default function PriceScanPage() {
         body: JSON.stringify({
           supplierId: selectedSupplier,
           sources: selectedSources,
-          priority: scanConfig.priority,
           config: scanConfig
         }),
       });
@@ -199,95 +204,7 @@ export default function PriceScanPage() {
       console.error('Error starting price scan:', error);
       alert('Failed to start price scanning. Please try again.');
       setCurrentStep('config');
-    } finally {
-      setIsScanning(false);
     }
-  };
-
-  const simulatePriceScanning = async (job: ScrapingJob) => {
-    const totalSteps = job.totalProducts * selectedSources.length;
-    let currentStep = 0;
-
-    for (let i = 0; i < job.totalProducts; i++) {
-      for (let j = 0; j < selectedSources.length; j++) {
-        // Simulate processing delay
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        currentStep++;
-        setScanProgress((currentStep / totalSteps) * 100);
-        
-        // Update job progress
-        const updatedJob = { ...job };
-        updatedJob.processedProducts = currentStep;
-        if (Math.random() > 0.2) { // 80% success rate
-          updatedJob.successfulProducts++;
-        } else {
-          updatedJob.failedProducts++;
-        }
-        setCurrentJob(updatedJob);
-      }
-    }
-
-    // Complete the job
-    const completedJob = { ...job, status: 'COMPLETED', completedAt: new Date().toISOString() };
-    setCurrentJob(completedJob);
-
-    // Generate mock results
-    const mockResults: PriceScrapingResult[] = generateMockResults();
-    setScanResults(mockResults);
-    
-    setCurrentStep('results');
-  };
-
-  const generateMockResults = (): PriceScrapingResult[] => {
-    const results: PriceScrapingResult[] = [];
-    
-    normalizedProducts.forEach((product, index) => {
-      selectedSources.forEach((sourceId, sourceIndex) => {
-        const source = scrapingSources.find(s => s.id === sourceId);
-        if (source) {
-          const basePrice = parseFloat(product.wholesalePrice);
-          const retailPrice = basePrice * (1.3 + Math.random() * 0.4); // 30-70% markup
-          
-          results.push({
-            id: `result_${index}_${sourceIndex}`,
-            normalizedProductId: product.id!,
-            sourceId: source.id,
-            productTitle: `${product.brand} ${product.productName} ${product.variantSize}`,
-            merchant: source.name,
-            url: `${source.baseUrl}/product/${product.id}`,
-            price: retailPrice.toString(),
-            priceInclVat: true,
-            shippingCost: Math.random() > 0.5 ? '0' : '4.99',
-            availability: Math.random() > 0.1,
-            confidenceScore: 0.7 + Math.random() * 0.3,
-            isLowestPrice: false,
-            scrapedAt: new Date().toISOString(),
-            jobId: currentJob?.id
-          });
-        }
-      });
-    });
-
-    // Mark lowest prices
-    const productGroups = results.reduce((groups, result) => {
-      if (!groups[result.normalizedProductId]) {
-        groups[result.normalizedProductId] = [];
-      }
-      groups[result.normalizedProductId].push(result);
-      return groups;
-    }, {} as Record<string, PriceScrapingResult[]>);
-
-    Object.values(productGroups).forEach(group => {
-      const lowestPrice = Math.min(...group.map(r => parseFloat(r.price)));
-      group.forEach(result => {
-        if (parseFloat(result.price) === lowestPrice) {
-          result.isLowestPrice = true;
-        }
-      });
-    });
-
-    return results;
   };
 
   const handleStopScan = async () => {
@@ -296,7 +213,6 @@ export default function PriceScanPage() {
         // Update job status to stopped
         const updatedJob = { ...currentJob, status: 'STOPPED', completedAt: new Date().toISOString() };
         setCurrentJob(updatedJob);
-        setIsScanning(false);
         setCurrentStep('config');
       } catch (error) {
         console.error('Error stopping scan:', error);
@@ -310,6 +226,11 @@ export default function PriceScanPage() {
         ? prev.filter(id => id !== sourceId)
         : [...prev, sourceId]
     );
+  };
+
+  const handleExport = (format: 'csv' | 'json') => {
+    // Implement export functionality
+    console.log(`Exporting results in ${format} format`);
   };
 
   return (
@@ -352,11 +273,11 @@ export default function PriceScanPage() {
                     <div
                       key={source.id}
                       className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                        selectedSources.includes(source.id)
+                        selectedSources.includes(source.id!)
                           ? 'border-blue-500 bg-blue-50'
                           : 'border-gray-200 hover:border-gray-300'
                       }`}
-                      onClick={() => handleSourceToggle(source.id)}
+                      onClick={() => handleSourceToggle(source.id!)}
                     >
                       <div className="flex items-center justify-between">
                         <div>
@@ -365,11 +286,11 @@ export default function PriceScanPage() {
                           <p className="text-xs text-gray-700">Priority: {source.priority}</p>
                         </div>
                         <div className={`w-4 h-4 rounded-full border-2 ${
-                          selectedSources.includes(source.id)
+                          selectedSources.includes(source.id!)
                             ? 'bg-blue-500 border-blue-500'
                             : 'border-gray-300'
                         }`}>
-                          {selectedSources.includes(source.id) && (
+                          {selectedSources.includes(source.id!) && (
                             <div className="w-2 h-2 bg-white rounded-full m-0.5"></div>
                           )}
                         </div>
@@ -414,20 +335,6 @@ export default function PriceScanPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Confidence Threshold
-                    </label>
-                    <input
-                      type="number"
-                      value={scanConfig.confidenceThreshold}
-                      onChange={(e) => setScanConfig(prev => ({ ...prev, confidenceThreshold: parseFloat(e.target.value) }))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      min="0"
-                      max="1"
-                      step="0.1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
                       Max Retries
                     </label>
                     <input
@@ -437,6 +344,20 @@ export default function PriceScanPage() {
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                       min="1"
                       max="5"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Timeout (ms)
+                    </label>
+                    <input
+                      type="number"
+                      value={scanConfig.timeout}
+                      onChange={(e) => setScanConfig(prev => ({ ...prev, timeout: parseInt(e.target.value) }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="5000"
+                      max="60000"
+                      step="1000"
                     />
                   </div>
                 </div>
@@ -466,9 +387,7 @@ export default function PriceScanPage() {
             <div className="mb-6">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-900">Job: {currentJob.name}</span>
-                <Badge variant={currentJob.status === 'RUNNING' ? 'default' : 'secondary'}>
-                  {currentJob.status}
-                </Badge>
+                <Badge label={currentJob.status} variant={currentJob.status === 'RUNNING' ? 'neutral' : 'warning'} />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
@@ -530,7 +449,12 @@ export default function PriceScanPage() {
                   </div>
                   <div className="text-center p-3 bg-yellow-50 rounded-lg">
                     <div className="text-xl font-bold text-yellow-600">
-                      {scanResults.filter(r => parseFloat(r.confidenceScore) >= 0.8).length}
+                      {scanResults.filter(r => {
+                        const score = typeof r.confidenceScore === 'object' && r.confidenceScore !== null 
+                          ? parseFloat(r.confidenceScore.toString()) 
+                          : parseFloat(String(r.confidenceScore || '0'));
+                        return score >= 0.8;
+                      }).length}
                     </div>
                     <div className="text-sm text-yellow-600">High Confidence</div>
                   </div>
@@ -544,7 +468,13 @@ export default function PriceScanPage() {
               )}
             </Card>
 
-            {scanResults.length > 0 && <PriceResultsTable results={scanResults} normalizedProducts={normalizedProducts} />}
+            {scanResults.length > 0 && (
+              <PriceResultsTable 
+                results={scanResults} 
+                normalizedProducts={normalizedProducts}
+                onExport={handleExport}
+              />
+            )}
           </div>
         )}
       </div>
