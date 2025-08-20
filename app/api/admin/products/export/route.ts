@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     const { format, columns, filters, includePricing = false }: ExportOptions = body;
 
     // Build where clause based on filters
-    const where: Record<string, unknown> = {};
+    const where: any = {};
 
     if (filters.brand) {
       where.brand = { contains: filters.brand, mode: "insensitive" };
@@ -60,15 +60,15 @@ export async function POST(request: NextRequest) {
     }
 
     if (filters.minRating || filters.maxRating) {
-      (where as Record<string, unknown>).starRating = {};
-      if (filters.minRating) (where as Record<string, unknown>).starRating.gte = filters.minRating;
-      if (filters.maxRating) (where as Record<string, unknown>).starRating.lte = filters.maxRating;
+      where.starRating = {};
+      if (filters.minRating) where.starRating.gte = filters.minRating;
+      if (filters.maxRating) where.starRating.lte = filters.maxRating;
     }
 
     if (filters.minPrice || filters.maxPrice) {
-      (where as Record<string, unknown>).retailPrice = {};
-      if (filters.minPrice) (where as Record<string, unknown>).retailPrice.gte = filters.minPrice;
-      if (filters.maxPrice) (where as Record<string, unknown>).retailPrice.lte = filters.maxPrice;
+      where.retailPrice = {};
+      if (filters.minPrice) where.retailPrice.gte = filters.minPrice;
+      if (filters.maxPrice) where.retailPrice.lte = filters.maxPrice;
     }
 
     if (filters.search) {
@@ -204,7 +204,7 @@ export async function POST(request: NextRequest) {
       worksheet["!cols"] = columnWidths;
 
       XLSX.utils.book_append_sheet(workbook, worksheet, "Producten");
-      fileBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+      fileBuffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" }) as Buffer;
       filename = `producten_export_${new Date().toISOString().split("T")[0]}.xlsx`;
       contentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     }
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
               columns,
               filters,
               includePricing,
-            } as unknown as Record<string, unknown>,
+            } as any,
             recordCount: products.length,
             status: "SUCCESS",
           },
