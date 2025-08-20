@@ -210,7 +210,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Get current user for export history
-    const session = await auth();
     const userId = session?.user?.id;
 
     // Log export history
