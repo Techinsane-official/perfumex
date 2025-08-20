@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/middleware-utils";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { Parser } from "json2csv";
@@ -28,7 +27,11 @@ export interface ExportOptions {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    // Check authentication and admin role
+    const session = await auth();
+    if (!session || session.user?.role !== "ADMIN") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
 
     const body = await request.json();
     const { format, columns, filters, includePricing = false }: ExportOptions = body;
@@ -255,7 +258,11 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    await requireAdmin();
+    // Check authentication and admin role
+    const session = await auth();
+    if (!session || session.user?.role !== "ADMIN") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
 
     // Return available columns for export
     const availableColumns = [
