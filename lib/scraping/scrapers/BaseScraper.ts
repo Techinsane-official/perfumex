@@ -65,208 +65,103 @@ export abstract class BaseScraper {
     const startTime = Date.now();
 
     try {
-      const proxyUrl = (this.source.config as any)?.proxyUrl || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
-      
-      // Enhanced launch args for serverless environments
-      const launchArgs = [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-        '--disable-background-timer-throttling',
-        '--disable-backgrounding-occluded-windows',
-        '--disable-renderer-backgrounding',
-        '--disable-web-security',
-        '--disable-features=TranslateUI',
-        '--disable-features=VizDisplayCompositor',
-        '--disable-ipc-flooding-protection',
-        '--single-process',
-        '--memory-pressure-off'
-      ] as string[];
-        
-      if (proxyUrl) {
-        launchArgs.push(`--proxy-server=${proxyUrl}`);
-      }
-
-      // Get Chrome path for the environment
-      const chromePath = getChromePath();
-      
-      const launchOptions: PuppeteerLaunchOptions = {
-        headless: this.source.config.useHeadless !== false ? 'new' : false,
-        args: launchArgs,
-        defaultViewport: { width: 1920, height: 1080 },
-        executablePath: chromePath,
-        timeout: 30000
-      };
-      
       // Special configuration for serverless environments
       const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.VERCEL_ENV;
       
       if (isServerless) {
-        console.log('🔧 Serverless environment detected - using ultra-fast config');
+        console.log('🔧 Serverless environment detected - using conservative config');
+        
+        // Use minimal, conservative configuration for Vercel
+        const launchOptions: PuppeteerLaunchOptions = {
+          headless: 'new',
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process'
+          ],
+          timeout: 30000
+        };
         
         if (chromium) {
           try {
-            // Use @sparticuz/chromium with minimal, fast configuration
             const executablePath = await chromium.executablePath();
-            console.log('🚀 @sparticuz/chromium path found');
-            
             launchOptions.executablePath = executablePath;
-            launchOptions.args = [
-              // Minimal args for maximum speed and memory efficiency
-              '--no-sandbox',
-              '--disable-setuid-sandbox',
-              '--disable-dev-shm-usage',
-              '--disable-accelerated-2d-canvas',
-              '--disable-gpu',
-              '--disable-background-timer-throttling',
-              '--disable-backgrounding-occluded-windows',
-              '--disable-renderer-backgrounding',
-              '--disable-extensions',
-              '--disable-plugins',
-              '--disable-images',
-              '--disable-javascript',
-              '--disable-default-apps',
-              '--disable-sync',
-              '--disable-translate',
-              '--disable-reading-from-canvas',
-              '--disable-permissions-api',
-              '--disable-web-security',
-              '--single-process',
-              '--memory-pressure-off',
-              '--max_old_space_size=1024',
-              '--js-flags=--max-old-space-size=1024'
-            ];
-            launchOptions.timeout = 15000;
-            launchOptions.headless = 'new';
-            console.log('✅ Ultra-fast serverless config applied');
+            console.log('✅ Using @sparticuz/chromium');
           } catch (chromiumError) {
-            console.error('❌ @sparticuz/chromium failed:', chromiumError);
-            throw new Error('Chromium initialization failed in serverless environment');
+            console.warn('⚠️ @sparticuz/chromium failed, using fallback:', chromiumError.message);
           }
-        } else {
-          throw new Error('@sparticuz/chromium not available in serverless environment');
         }
+        
+        console.log(`🚀 Launching browser for ${this.source.name}...`);
+        this.browser = await puppeteer.launch(launchOptions);
+        console.log(`✅ Browser launched successfully for ${this.source.name}`);
+        
+        this.page = await this.browser.newPage();
+        console.log(`📄 New page created for ${this.source.name}`);
+        
+        // Basic page setup
+        await this.page.setUserAgent(this.getRandomUserAgent());
+        await this.page.setViewport({ width: 1280, height: 720 });
+        
+      } else {
+        // Local environment - use standard configuration
+        const launchOptions: PuppeteerLaunchOptions = {
+          headless: this.source.config.useHeadless !== false ? 'new' : false,
+          args: [
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage'
+          ],
+          defaultViewport: { width: 1920, height: 1080 },
+          timeout: 30000
+        };
+        
+        const chromePath = getChromePath();
+        if (chromePath) {
+          launchOptions.executablePath = chromePath;
+        }
+        
+        console.log(`🚀 Launching browser for ${this.source.name}...`);
+        this.browser = await puppeteer.launch(launchOptions);
+        console.log(`✅ Browser launched successfully for ${this.source.name}`);
+        
+        this.page = await this.browser.newPage();
+        console.log(`📄 New page created for ${this.source.name}`);
+        
+        // Set user agent
+        await this.page.setUserAgent(this.getRandomUserAgent());
+        
+        // Set extra headers
+        if (this.source.config.headers) {
+          await this.page.setExtraHTTPHeaders(this.source.config.headers);
+        }
+        
+        // Set viewport
+        await this.page.setViewport({ width: 1920, height: 1080 });
       }
 
-      console.log(`🚀 Launching browser for ${this.source.name}...`);
+      this.isInitialized = true;
       
-      // Wrap browser launch in timeout for serverless
-      const browserLaunchPromise = puppeteer.launch(launchOptions);
-      
-      let browser;
-      if (isServerless) {
-        // 10 second timeout for serverless browser launch
-        browser = await Promise.race([
-          browserLaunchPromise,
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Browser launch timeout (10s)')), 10000)
-          )
-        ]);
-      } else {
-        browser = await browserLaunchPromise;
-      }
-      
-      this.browser = browser as any;
-      console.log(`✅ Browser launched successfully for ${this.source.name}`);
-      
-      // Also timeout page creation in serverless
-      if (isServerless) {
-        this.page = await Promise.race([
-          this.browser.newPage(),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Page creation timeout (5s)')), 5000)
-          )
-        ]) as any;
-      } else {
-        this.page = await this.browser.newPage();
-      }
-      
-      console.log(`📄 New page created for ${this.source.name}`);
-      
-      // Quick setup for serverless
-      if (isServerless) {
-        await Promise.race([
-          this.setupPage(),
-          new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Page setup timeout (5s)')), 5000)
-          )
-        ]);
-      } else {
-        await this.setupPage();
-      }
+      const elapsed = Date.now() - startTime;
+      console.log(`✅ Scraper initialization completed for ${this.source.name} in ${elapsed}ms`);
       
     } catch (error) {
-      console.error(`❌ Browser launch failed for ${this.source.name}:`, error.message);
+      const elapsed = Date.now() - startTime;
+      console.error(`❌ Failed to initialize scraper for ${this.source.name} after ${elapsed}ms:`, error);
       
-      // Multiple fallback strategies for serverless
-      if (isServerless) {
-        console.log('🔄 Trying serverless fallback configurations...');
-        
+      // Cleanup on failure
+      if (this.browser) {
         try {
-          // Fallback: Minimal serverless config
-          console.log('🔄 Fallback: Minimal serverless config...');
-          const minimalOptions = {
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox', '--single-process'],
-            timeout: 60000
-          };
-          this.browser = await puppeteer.launch(minimalOptions);
-          console.log(`✅ Browser launched with minimal fallback for ${this.source.name}`);
-        } catch (fallbackError) {
-          console.error('❌ All fallback strategies failed:', fallbackError.message);
-          throw error;
+          await this.browser.close();
+        } catch (cleanupError) {
+          console.error(`Cleanup error:`, cleanupError);
         }
-      } else {
-        throw error;
       }
+      
+      throw new Error(`Scraper initialization failed for ${this.source.name}: ${error.message}`);
     }
-    
-    if (!this.page) {
-      this.page = await this.browser!.newPage();
-      console.log(`📄 New page created for ${this.source.name}`);
-    }
-
-    // Set user agent
-    await this.page.setUserAgent(this.getRandomUserAgent());
-
-    // Set extra headers
-    if (this.source.config.headers) {
-      await this.page.setExtraHTTPHeaders(this.source.config.headers);
-    }
-
-    // Set viewport
-    await this.page.setViewport({ width: 1920, height: 1080 });
-
-    this.isInitialized = true;
-    
-    const elapsed = Date.now() - startTime;
-    console.log(`✅ Scraper initialization completed for ${this.source.name} in ${elapsed}ms`);
-  }
-
-  /**
-   * Setup page with basic configuration
-   */
-  private async setupPage(): Promise<void> {
-    if (!this.page) throw new Error('Page not available');
-    
-    // Set user agent
-    await this.page.setUserAgent(this.getRandomUserAgent());
-
-    // Set extra headers
-    await this.page.setExtraHTTPHeaders({
-      'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
-      'Accept-Encoding': 'gzip, deflate, br',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-    });
-
-    // Set viewport
-    await this.page.setViewport({ width: 1920, height: 1080 });
   }
 
   /**
