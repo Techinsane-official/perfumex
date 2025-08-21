@@ -1,6 +1,50 @@
 import puppeteer, { Browser, Page, PuppeteerLaunchOptions } from 'puppeteer';
 import { ScrapingSource, ScrapingSourceConfig } from '../types';
 
+// Import Chromium for serverless (conditional)
+let chromium: any;
+try {
+  chromium = require('@sparticuz/chromium');
+} catch (e) {
+  // @sparticuz/chromium not available, will use regular Puppeteer
+}
+
+/**
+ * Get Chrome executable path for different environments
+ */
+function getChromePath(): string | undefined {
+  // Check for Vercel/serverless environment variables
+  if (process.env.VERCEL || process.env.LAMBDA_TASK_ROOT) {
+    // Use chromium on Vercel
+    return undefined; // Let Puppeteer use bundled Chromium
+  }
+  
+  // Check common Chrome paths for different platforms
+  const possiblePaths = [
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/opt/google/chrome/chrome'
+  ];
+  
+  const fs = require('fs');
+  for (const path of possiblePaths) {
+    try {
+      if (fs.existsSync(path)) {
+        return path;
+      }
+    } catch (e) {
+      // Ignore errors
+    }
+  }
+  
+  return undefined;
+}
+
 export abstract class BaseScraper {
   protected source: ScrapingSource;
   protected browser: Browser | null = null;
@@ -19,6 +63,7 @@ export abstract class BaseScraper {
 
     try {
       const proxyUrl = (this.source.config as any)?.proxyUrl || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+      // Enhanced launch args for serverless environments
       const launchArgs = [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -29,20 +74,88 @@ export abstract class BaseScraper {
           '--disable-gpu',
           '--disable-background-timer-throttling',
           '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding'
+          '--disable-renderer-backgrounding',
+          '--disable-web-security',
+          '--disable-features=TranslateUI',
+          '--disable-features=VizDisplayCompositor',
+          '--disable-ipc-flooding-protection',
+          '--single-process', // Important for serverless
+          '--memory-pressure-off'
         ] as string[];
+        
       if (proxyUrl) {
         launchArgs.push(`--proxy-server=${proxyUrl}`);
       }
 
+      // Get Chrome path for the environment
+      const chromePath = getChromePath();
+      
       const launchOptions: PuppeteerLaunchOptions = {
-        headless: this.source.config.useHeadless !== false,
+        headless: this.source.config.useHeadless !== false ? 'new' : false,
         args: launchArgs,
-        defaultViewport: { width: 1920, height: 1080 }
+        defaultViewport: { width: 1920, height: 1080 },
+        executablePath: chromePath,
+        timeout: 30000
       };
+      
+      // Special configuration for serverless environments
+      if (process.env.VERCEL || process.env.LAMBDA_TASK_ROOT) {
+        console.log('🔧 Configuring Puppeteer for serverless environment...');
+        
+        if (chromium) {
+          // Use @sparticuz/chromium for better Vercel compatibility
+          launchOptions.executablePath = await chromium.executablePath();
+          launchOptions.args = chromium.args.concat([
+            '--disable-extensions',
+            '--disable-plugins', 
+            '--disable-images', // Save bandwidth
+            '--disable-javascript-harmony-shipping',
+            '--disable-background-networking'
+          ]);
+          console.log('✅ Using @sparticuz/chromium for Vercel');
+        } else {
+          // Fallback to bundled Chromium
+          launchOptions.executablePath = undefined;
+          launchOptions.args = [
+            ...launchArgs,
+            '--disable-extensions',
+            '--disable-plugins',
+            '--disable-images',
+            '--disable-javascript-harmony-shipping',
+            '--disable-background-networking'
+          ];
+          console.log('⚠️ Using fallback Chromium configuration');
+        }
+      }
 
-      this.browser = await puppeteer.launch(launchOptions);
+      console.log(`🚀 Launching browser for ${this.source.name}...`);
+      if (process.env.VERCEL) {
+        console.log('🔧 Vercel environment detected, using bundled Chromium');
+      }
+      
+      try {
+        this.browser = await puppeteer.launch(launchOptions);
+        console.log(`✅ Browser launched successfully for ${this.source.name}`);
+      } catch (error) {
+        console.error(`❌ Browser launch failed for ${this.source.name}:`, error.message);
+        
+        // Fallback: Try with minimal options for serverless
+        if (process.env.VERCEL || process.env.LAMBDA_TASK_ROOT) {
+          console.log('🔄 Trying fallback configuration...');
+          const fallbackOptions = {
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            timeout: 60000
+          };
+          this.browser = await puppeteer.launch(fallbackOptions);
+          console.log(`✅ Browser launched with fallback options for ${this.source.name}`);
+        } else {
+          throw error;
+        }
+      }
+      
       this.page = await this.browser.newPage();
+      console.log(`📄 New page created for ${this.source.name}`);
 
       // Set user agent
       await this.page.setUserAgent(this.getRandomUserAgent());
