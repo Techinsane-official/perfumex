@@ -71,28 +71,28 @@ export abstract class BaseScraper {
       if (isServerless) {
         console.log('🔧 Serverless environment detected - using conservative config');
         
-        // Use minimal, conservative configuration for Vercel
+        // Force use of @sparticuz/chromium for Vercel
+        if (!chromium) {
+          throw new Error('❌ @sparticuz/chromium is required for serverless environment but not available');
+        }
+        
+        const executablePath = await chromium.executablePath();
+        console.log('✅ Using @sparticuz/chromium executable:', executablePath);
+        
         const launchOptions: PuppeteerLaunchOptions = {
+          executablePath,
           headless: 'new',
           args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--single-process'
+            ...chromium.args,
+            '--hide-scrollbars',
+            '--disable-web-security',
+            '--disable-features=VizDisplayCompositor',
           ],
-          timeout: 30000
+          ignoreDefaultArgs: ['--disable-extensions'],
+          timeout: 60000
         };
         
-        if (chromium) {
-          try {
-            const executablePath = await chromium.executablePath();
-            launchOptions.executablePath = executablePath;
-            console.log('✅ Using @sparticuz/chromium');
-          } catch (chromiumError) {
-            console.warn('⚠️ @sparticuz/chromium failed, using fallback:', chromiumError.message);
-          }
-        }
+        console.log('🔧 Serverless launch options:', JSON.stringify(launchOptions, null, 2));
         
         console.log(`🚀 Launching browser for ${this.source.name}...`);
         this.browser = await puppeteer.launch(launchOptions);
