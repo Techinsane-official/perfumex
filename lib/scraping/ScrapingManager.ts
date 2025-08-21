@@ -1,20 +1,18 @@
 import { BaseScraper } from './scrapers/BaseScraper';
-import { BolComScraper } from './scrapers/BolComScraper';
-import { AmazonNLScraper } from './scrapers/AmazonNLScraper';
-import { AmazonFRScraper } from './scrapers/AmazonFRScraper';
-import { AmazonDEScraper } from './scrapers/AmazonDEScraper';
 import { HouseOfNicheScraper } from './scrapers/HouseOfNicheScraper';
 import { PlaywrightBaseScraper } from './scrapers/PlaywrightBaseScraper';
 import { PlaywrightBolComScraper } from './scrapers/PlaywrightBolComScraper';
+import { PlaywrightAmazonNLScraper } from './scrapers/PlaywrightAmazonNLScraper';
+import { PlaywrightAmazonFRScraper } from './scrapers/PlaywrightAmazonFRScraper';
+import { PlaywrightAmazonDEScraper } from './scrapers/PlaywrightAmazonDEScraper';
 import { 
   ScrapingSource, 
   PriceScrapingResult, 
   NormalizedProductData,
-  ScrapingJob,
-  ScrapingJobConfig 
+  ScrapingJob
 } from './types';
 import { ProductMatcher } from './matching/ProductMatcher';
-import { Decimal } from '@prisma/client/runtime/library';
+
 
 type UpdateJobCallback = (
   jobId: string,
@@ -51,34 +49,27 @@ export class ScrapingManager {
 
         let scraper: BaseScraper | PlaywrightBaseScraper;
 
-        // Determine whether to use Playwright or Puppeteer
-        const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.VERCEL_ENV;
-        const usePlaywright = isServerless; // Use Playwright in serverless environments
+        // Use Playwright for all scrapers (faster and more reliable)
+        console.log(`🎭 Using Playwright for ${source.name} (optimized)`);
 
         switch (source.name.toLowerCase()) {
           case 'bol.com':
-            if (usePlaywright) {
-              console.log(`🎭 Using Playwright for ${source.name} (serverless optimization)`);
-              scraper = new PlaywrightBolComScraper(source);
-            } else {
-              console.log(`🤖 Using Puppeteer for ${source.name} (local environment)`);
-              scraper = new BolComScraper(source);
-            }
+            scraper = new PlaywrightBolComScraper(source);
             break;
           case 'amazon netherlands':
           case 'amazon nl':
-            scraper = new AmazonNLScraper(source);
+            scraper = new PlaywrightAmazonNLScraper(source);
             break;
           case 'amazon france':
           case 'amazon fr':
-            scraper = new AmazonFRScraper(source);
+            scraper = new PlaywrightAmazonFRScraper(source);
             break;
           case 'amazon germany':
           case 'amazon de':
-            scraper = new AmazonDEScraper(source);
+            scraper = new PlaywrightAmazonDEScraper(source);
             break;
           case 'house of niche':
-            scraper = new HouseOfNicheScraper(source);
+            scraper = new HouseOfNicheScraper(source) as any; // Keep legacy scraper for now
             break;
           // Add more scrapers here as they are implemented
           default:
@@ -167,9 +158,9 @@ export class ScrapingManager {
           failedProducts: batchResults.failed
         });
 
-        // Wait between batches (optimized)
+        // Wait between batches (further optimized for speed)
         if (i < batches.length - 1) {
-          await this.delay(job.config.delayBetweenBatches || 2000);
+          await this.delay(job.config.delayBetweenBatches || 800);
         }
       }
 
@@ -290,8 +281,8 @@ export class ScrapingManager {
               productResults.push(priceResult);
             }
 
-            // Wait for rate limiting (optimized)
-            await this.delay(500);
+            // Wait for rate limiting (further optimized for speed)
+            await this.delay(200);
 
           } catch (error) {
             console.warn(`Failed to scrape product ${product.id} from source ${sourceId}:`, error);

@@ -451,15 +451,54 @@ export default function PriceScanPage() {
                 </div>
               </div>
 
-              {/* Enhanced Progress Bar */}
-              <div className="w-full bg-gray-200 rounded-full h-2.5">
-                <div
-                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
-                  style={{ width: `${scanProgress}%` }}
-                ></div>
-              </div>
-              <div className="text-center mt-2 text-sm text-gray-800">
-                {Math.round(scanProgress)}% Complete
+              {/* Enhanced Progress Bar with Modern Design */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-medium text-gray-900">
+                    Scanning Progress
+                  </div>
+                  <div className="text-sm font-semibold text-blue-600">
+                    {Math.round(scanProgress)}%
+                  </div>
+                </div>
+                
+                {/* Main Progress Bar */}
+                <div className="relative">
+                  <div className="w-full bg-gradient-to-r from-gray-200 to-gray-300 rounded-full h-4 shadow-inner">
+                    <div
+                      className="bg-gradient-to-r from-blue-500 to-blue-600 h-4 rounded-full transition-all duration-500 ease-out shadow-sm relative overflow-hidden"
+                      style={{ width: `${scanProgress}%` }}
+                    >
+                      {/* Animated shimmer effect */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-pulse"></div>
+                    </div>
+                  </div>
+                  
+                  {/* Progress Text Overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-medium text-white drop-shadow-sm">
+                      {currentJob.processedProducts || 0} / {currentJob.totalProducts || 0} products
+                    </span>
+                  </div>
+                </div>
+
+                {/* Stats Row */}
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-2">
+                    <div className="text-lg font-bold text-green-600">{currentJob.successfulProducts || 0}</div>
+                    <div className="text-xs text-green-600">Successful</div>
+                  </div>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-2">
+                    <div className="text-lg font-bold text-red-600">{currentJob.failedProducts || 0}</div>
+                    <div className="text-xs text-red-600">Failed</div>
+                  </div>
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                    <div className="text-lg font-bold text-blue-600">
+                      {currentJob.currentBatch || 0}/{currentJob.totalBatches || 0}
+                    </div>
+                    <div className="text-xs text-blue-600">Batches</div>
+                  </div>
+                </div>
               </div>
 
               {/* Detailed Progress Information */}

@@ -12,7 +12,11 @@ import {
   Calendar,
   Download,
   RefreshCw,
-  BarChart3
+  BarChart3,
+  Search,
+  ExternalLink,
+  ChevronDown,
+  Star
 } from 'lucide-react';
 import PriceResultsTable from '@/components/scraping/PriceResultsTable';
 import { PriceScrapingResult, NormalizedProductData } from '@/lib/scraping/types';
@@ -26,6 +30,10 @@ export default function ResultsPage({}: ResultsPageProps) {
   const [apiAnalytics, setApiAnalytics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<'7d' | '30d' | '90d' | 'all'>('30d');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedMerchant, setSelectedMerchant] = useState<string>('all');
+  const [sortBy, setSortBy] = useState<'date' | 'price' | 'confidence'>('date');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Fetch real data from API
   useEffect(() => {
@@ -70,6 +78,49 @@ export default function ResultsPage({}: ResultsPageProps) {
 
     fetchData();
   }, []);
+
+  // Get unique merchants for filter dropdown
+  const uniqueMerchants = Array.from(new Set(results.map(r => r.merchant))).filter(Boolean);
+
+  // Filter and sort results
+  const filteredResults = results
+    .filter(result => {
+      // Search filter
+      if (searchTerm) {
+        const search = searchTerm.toLowerCase();
+        const matchesProduct = result.productTitle?.toLowerCase().includes(search);
+        const matchesMerchant = result.merchant?.toLowerCase().includes(search);
+        if (!matchesProduct && !matchesMerchant) return false;
+      }
+      
+      // Merchant filter
+      if (selectedMerchant !== 'all' && result.merchant !== selectedMerchant) {
+        return false;
+      }
+      
+      return true;
+    })
+    .sort((a, b) => {
+      let valueA: any, valueB: any;
+      
+      switch (sortBy) {
+        case 'price':
+          valueA = a.priceInclVat || 0;
+          valueB = b.priceInclVat || 0;
+          break;
+        case 'confidence':
+          valueA = a.confidenceScore || 0;
+          valueB = b.confidenceScore || 0;
+          break;
+        case 'date':
+        default:
+          valueA = new Date(a.scrapedAt || 0).getTime();
+          valueB = new Date(b.scrapedAt || 0).getTime();
+          break;
+      }
+      
+      return sortOrder === 'asc' ? valueA - valueB : valueB - valueA;
+    });
 
   const handleExport = (format: 'csv' | 'json') => {
     if (results.length === 0) return;
@@ -232,6 +283,104 @@ export default function ResultsPage({}: ResultsPageProps) {
           </div>
         </div>
 
+        {/* Search and Filter Controls */}
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {/* Search */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                <input
+                  type="text"
+                  placeholder="Search products or merchants..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Merchant Filter */}
+              <div className="relative">
+                <select
+                  value={selectedMerchant}
+                  onChange={(e) => setSelectedMerchant(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="all">All Merchants</option>
+                  {uniqueMerchants.map(merchant => (
+                    <option key={merchant} value={merchant}>{merchant}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+              </div>
+
+              {/* Sort By */}
+              <div className="relative">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as 'date' | 'price' | 'confidence')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="date">Sort by Date</option>
+                  <option value="price">Sort by Price</option>
+                  <option value="confidence">Sort by Confidence</option>
+                </select>
+                <ChevronDown className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4 pointer-events-none" />
+              </div>
+
+              {/* Sort Order */}
+              <div className="flex gap-2">
+                <Button
+                  variant={sortOrder === 'desc' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortOrder('desc')}
+                  className="flex-1"
+                >
+                  ↓ Desc
+                </Button>
+                <Button
+                  variant={sortOrder === 'asc' ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setSortOrder('asc')}
+                  className="flex-1"
+                >
+                  ↑ Asc
+                </Button>
+              </div>
+            </div>
+
+            {/* Filter Summary */}
+            <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+              <span>
+                Showing {filteredResults.length} of {results.length} results
+                {searchTerm && (
+                  <span className="ml-2 text-blue-600">
+                    for "{searchTerm}"
+                  </span>
+                )}
+                {selectedMerchant !== 'all' && (
+                  <span className="ml-2 text-green-600">
+                    from {selectedMerchant}
+                  </span>
+                )}
+              </span>
+              
+              {(searchTerm || selectedMerchant !== 'all') && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setSelectedMerchant('all');
+                  }}
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Analytics Overview */}
         {analytics && (
           <Card className="mb-8">
@@ -322,7 +471,7 @@ export default function ResultsPage({}: ResultsPageProps) {
 
         {/* Results Table */}
         <PriceResultsTable
-          results={getFilteredResults()}
+          results={filteredResults}
           normalizedProducts={normalizedProducts}
           onExport={handleExport}
           onRefresh={handleRefresh}
