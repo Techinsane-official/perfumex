@@ -63,6 +63,9 @@ export abstract class BaseScraper {
   async initialize(): Promise<void> {
     if (this.isInitialized) return;
 
+    console.log(`🚀 Starting initialization for ${this.source.name}...`);
+    const startTime = Date.now();
+
     try {
       const proxyUrl = (this.source.config as any)?.proxyUrl || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
       // Enhanced launch args for serverless environments
@@ -104,47 +107,46 @@ export abstract class BaseScraper {
       const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.VERCEL_ENV;
       
       if (isServerless) {
-        console.log('🔧 Serverless environment detected:', {
-          VERCEL: process.env.VERCEL,
-          LAMBDA_TASK_ROOT: process.env.LAMBDA_TASK_ROOT,
-          VERCEL_ENV: process.env.VERCEL_ENV
-        });
+        console.log('🔧 Serverless environment detected - using ultra-fast config');
         
         if (chromium) {
           try {
-            // Use @sparticuz/chromium for better Vercel compatibility
+            // Use @sparticuz/chromium with minimal, fast configuration
             const executablePath = await chromium.executablePath();
-            console.log('🚀 @sparticuz/chromium executable path:', executablePath);
+            console.log('🚀 @sparticuz/chromium path found');
             
             launchOptions.executablePath = executablePath;
-            launchOptions.args = chromium.args.concat([
+            launchOptions.args = [
+              // Minimal args for maximum speed
+              '--no-sandbox',
+              '--disable-setuid-sandbox',
+              '--disable-dev-shm-usage',
+              '--disable-accelerated-2d-canvas',
+              '--disable-gpu',
+              '--disable-background-timer-throttling',
+              '--disable-backgrounding-occluded-windows',
+              '--disable-renderer-backgrounding',
               '--disable-extensions',
-              '--disable-plugins', 
-              '--disable-images', // Save bandwidth
-              '--disable-javascript-harmony-shipping',
-              '--disable-background-networking'
-            ]);
-            console.log('✅ Using @sparticuz/chromium for serverless');
+              '--disable-plugins',
+              '--disable-images',
+              '--disable-javascript',
+              '--disable-default-apps',
+              '--disable-sync',
+              '--disable-translate',
+              '--disable-reading-from-canvas',
+              '--disable-permissions-api',
+              '--disable-web-security',
+              '--single-process'
+            ];
+            launchOptions.timeout = 15000; // Reduce timeout for faster failure
+            launchOptions.headless = 'new';
+            console.log('✅ Ultra-fast serverless config applied');
           } catch (chromiumError) {
-            console.error('❌ Failed to get @sparticuz/chromium path:', chromiumError);
-            // Fallback to bundled Chromium
-            launchOptions.executablePath = undefined;
-            launchOptions.args = chromium.args || launchArgs;
-            console.log('⚠️ Using @sparticuz/chromium args with bundled executable');
+            console.error('❌ @sparticuz/chromium failed:', chromiumError);
+            throw new Error('Chromium initialization failed in serverless environment');
           }
         } else {
-          console.log('❌ @sparticuz/chromium not available, using fallback');
-          // Fallback to bundled Chromium
-          launchOptions.executablePath = undefined;
-          launchOptions.args = [
-            ...launchArgs,
-            '--disable-extensions',
-            '--disable-plugins',
-            '--disable-images',
-            '--disable-javascript-harmony-shipping',
-            '--disable-background-networking'
-          ];
-          console.log('⚠️ Using fallback Chromium configuration');
+          throw new Error('@sparticuz/chromium not available in serverless environment');
         }
       }
 
@@ -153,10 +155,52 @@ export abstract class BaseScraper {
         console.log('🔧 Vercel environment detected, using bundled Chromium');
       }
       
-      try {
-        this.browser = await puppeteer.launch(launchOptions);
-        console.log(`✅ Browser launched successfully for ${this.source.name}`);
-      } catch (error) {
+      // Wrap browser launch in timeout for serverless
+      const browserLaunchPromise = puppeteer.launch(launchOptions);
+      
+      let browser;
+      if (isServerless) {
+        // 10 second timeout for serverless browser launch
+        browser = await Promise.race([
+          browserLaunchPromise,
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Browser launch timeout (10s)')), 10000)
+          )
+        ]);
+      } else {
+        browser = await browserLaunchPromise;
+      }
+      
+      this.browser = browser as any;
+      console.log(`✅ Browser launched successfully for ${this.source.name}`);
+      
+      // Also timeout page creation in serverless
+      if (isServerless) {
+        this.page = await Promise.race([
+          this.browser.newPage(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Page creation timeout (5s)')), 5000)
+          )
+        ]) as any;
+      } else {
+        this.page = await this.browser.newPage();
+      }
+      
+      console.log(`📄 New page created for ${this.source.name}`);
+      
+      // Quick setup for serverless
+      if (isServerless) {
+        await Promise.race([
+          this.setupPage(),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Page setup timeout (5s)')), 5000)
+          )
+        ]);
+      } else {
+        await this.setupPage();
+      }
+      
+    } catch (error) {
         console.error(`❌ Browser launch failed for ${this.source.name}:`, error.message);
         
         // Multiple fallback strategies for serverless
@@ -219,10 +263,46 @@ export abstract class BaseScraper {
       await this.page.setViewport({ width: 1920, height: 1080 });
 
       this.isInitialized = true;
+      
+      const elapsed = Date.now() - startTime;
+      console.log(`✅ Scraper initialization completed for ${this.source.name} in ${elapsed}ms`);
     } catch (error) {
-      console.error(`Failed to initialize scraper for ${this.source.name}:`, error);
-      throw error;
+      const elapsed = Date.now() - startTime;
+      console.error(`❌ Failed to initialize scraper for ${this.source.name} after ${elapsed}ms:`, error);
+      
+      // Cleanup on failure
+      if (this.browser) {
+        try {
+          await this.browser.close();
+        } catch (cleanupError) {
+          console.error(`Cleanup error:`, cleanupError);
+        }
+      }
+      
+      throw new Error(`Scraper initialization failed for ${this.source.name}: ${error.message}`);
     }
+  }
+
+  /**
+   * Setup page with basic configuration
+   */
+  private async setupPage(): Promise<void> {
+    if (!this.page) throw new Error('Page not available');
+    
+    // Set user agent
+    await this.page.setUserAgent(this.getRandomUserAgent());
+
+    // Set extra headers
+    await this.page.setExtraHTTPHeaders({
+      'Accept-Language': 'en-US,en;q=0.9,nl;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+    });
+
+    // Set viewport
+    await this.page.setViewport({ width: 1920, height: 1080 });
   }
 
   /**

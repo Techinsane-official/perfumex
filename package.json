@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "npx prisma generate && next build --no-lint",
-    "postinstall": "npx prisma generate && npx puppeteer browsers install chrome",
+    "postinstall": "npx prisma generate && npx playwright install chromium",
     "start": "next start",
     "lint": "next lint",
     "lint:strict": "eslint . --ext .js,.jsx,.ts,.tsx --max-warnings 0",
@@ -35,7 +35,7 @@
     "@auth/prisma-adapter": "^1.0.0",
     "@prisma/client": "^6.13.0",
     "@radix-ui/react-dialog": "^1.1.14",
-    "@sparticuz/chromium": "^131.0.1",
+    "playwright": "^1.48.0",
     "@supabase/supabase-js": "^2.39.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/jest": "^30.0.0",
