@@ -140,13 +140,34 @@ export async function POST(request: NextRequest) {
       where: sources && sources.length > 0 ? { id: { in: sources }, isActive: true } : { isActive: true },
     });
 
-    // Kick off the job without waiting - with proper error handling
+    // Kick off the job without waiting - with timeout and proper error handling
     (async () => {
+      const jobTimeout = setTimeout(async () => {
+        console.error(`⏰ Job ${job.id} timed out after 4 minutes`);
+        await prisma.priceScrapingJob.update({ 
+          where: { id: job.id }, 
+          data: { 
+            status: 'FAILED', 
+            errorMessage: 'Job timed out during initialization or execution' 
+          } 
+        });
+      }, 240000); // 4 minute timeout
+
       try {
-        console.log(`Initializing scrapers for job ${job.id}...`);
-        await manager.initializeScrapers(activeSources);
-        console.log(`✅ Scrapers initialized, starting job ${job.id}...`);
+        console.log(`🚀 Starting job ${job.id} with ${activeSources.length} sources and ${productsToProcess.length} products`);
         
+        // Step 1: Initialize scrapers with timeout
+        console.log(`📡 Initializing scrapers for job ${job.id}...`);
+        const initPromise = manager.initializeScrapers(activeSources);
+        const initTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Scraper initialization timed out after 60 seconds')), 60000)
+        );
+        
+        await Promise.race([initPromise, initTimeout]);
+        console.log(`✅ Scrapers initialized successfully for job ${job.id}`);
+        
+        // Step 2: Start the scraping job
+        console.log(`🔍 Starting scraping job ${job.id}...`);
         await manager.startScrapingJob({ 
           ...job, 
           config: {
@@ -155,16 +176,25 @@ export async function POST(request: NextRequest) {
           } as any 
         } as any, productsToProcess as any);
         
+        clearTimeout(jobTimeout);
         console.log(`✅ Job ${job.id} completed successfully`);
+        
       } catch (err) {
+        clearTimeout(jobTimeout);
         console.error(`❌ Scraping job ${job.id} failed:`, err);
-        await prisma.priceScrapingJob.update({ 
-          where: { id: job.id }, 
-          data: { 
-            status: 'FAILED', 
-            errorMessage: String(err) 
-          } 
-        });
+        
+        // Ensure the job gets marked as failed
+        try {
+          await prisma.priceScrapingJob.update({ 
+            where: { id: job.id }, 
+            data: { 
+              status: 'FAILED', 
+              errorMessage: String(err) 
+            } 
+          });
+        } catch (updateErr) {
+          console.error(`Failed to update job ${job.id} status:`, updateErr);
+        }
       }
     })();
 
