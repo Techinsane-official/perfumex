@@ -27,6 +27,13 @@ interface ScrapingJob {
   startedAt?: string;
   completedAt?: string;
   supplier?: { name: string };
+  // Enhanced progress tracking
+  currentProduct?: string;
+  currentSource?: string;
+  currentBatch?: number;
+  totalBatches?: number;
+  currentSearchTerm?: string;
+  searchAttempts?: number;
 }
 
 export default function PriceScanPage() {
@@ -184,9 +191,37 @@ export default function PriceScanPage() {
                 startedAt: j.startedAt,
                 completedAt: j.completedAt,
                 supplier: j.supplier ? { name: j.supplier.name } : undefined,
+                // Enhanced progress tracking
+                currentProduct: j.currentProduct,
+                currentSource: j.currentSource,
+                currentBatch: j.currentBatch,
+                totalBatches: j.totalBatches,
+                currentSearchTerm: j.currentSearchTerm,
+                searchAttempts: j.searchAttempts,
               } as any);
-              const progress = j.totalProducts > 0 ? Math.round((j.processedProducts / j.totalProducts) * 100) : 0;
-              setScanProgress(progress);
+              // Calculate more granular progress including current product
+              let progress = 0;
+              if (j.totalProducts > 0) {
+                // Base progress from processed products
+                const baseProgress = (j.processedProducts / j.totalProducts) * 100;
+                
+                // Add partial progress for current product if we have batch info
+                if (j.currentBatch && j.totalBatches) {
+                  const batchProgress = ((j.currentBatch - 1) / j.totalBatches) * 100;
+                  const currentBatchWeight = (1 / j.totalBatches) * 100;
+                  
+                  // If we're in the middle of a batch, add partial progress
+                  if (j.currentProduct && j.currentSource) {
+                    progress = batchProgress + (currentBatchWeight * 0.5); // Assume 50% through current batch
+                  } else {
+                    progress = batchProgress;
+                  }
+                } else {
+                  progress = baseProgress;
+                }
+              }
+              
+              setScanProgress(Math.min(100, Math.round(progress)));
               if (j.status === 'COMPLETED' || j.status === 'FAILED' || j.status === 'STOPPED') {
                 clearInterval(interval);
                 setCurrentStep('results');
@@ -416,7 +451,7 @@ export default function PriceScanPage() {
                 </div>
               </div>
 
-              {/* Progress Bar */}
+              {/* Enhanced Progress Bar */}
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div
                   className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
@@ -426,9 +461,90 @@ export default function PriceScanPage() {
               <div className="text-center mt-2 text-sm text-gray-800">
                 {Math.round(scanProgress)}% Complete
               </div>
+
+              {/* Detailed Progress Information */}
+              {currentJob.currentProduct && (
+                <div className="mt-4 space-y-3">
+                  {/* Current Product */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-blue-800">Current Product:</span>
+                      <span className="text-sm text-blue-600">{currentJob.currentProduct}</span>
+                    </div>
+                  </div>
+
+                  {/* Current Source */}
+                  {currentJob.currentSource && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-green-800">Current Source:</span>
+                        <span className="text-sm text-green-600">{currentJob.currentSource}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Current Search Term */}
+                  {currentJob.currentSearchTerm && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-yellow-800">Search Term:</span>
+                        <span className="text-sm text-yellow-600">{currentJob.currentSearchTerm}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Batch Progress */}
+                  {currentJob.currentBatch && currentJob.totalBatches && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-purple-800">Batch Progress:</span>
+                        <span className="text-sm text-purple-600">
+                          {currentJob.currentBatch} of {currentJob.totalBatches}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Search Attempts */}
+                  {currentJob.searchAttempts && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium text-orange-800">Search Attempts:</span>
+                        <span className="text-sm text-orange-600">{currentJob.searchAttempts}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
-            <div className="text-center">
+            {/* Real-time Status Indicator */}
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-center space-x-2 mb-3">
+                <div className="animate-pulse w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-sm font-medium text-gray-700">Live Progress</span>
+              </div>
+              
+              {currentJob.currentProduct && (
+                <div className="text-center space-y-2">
+                  <div className="text-lg font-semibold text-gray-900">
+                    Currently processing: {currentJob.currentProduct}
+                  </div>
+                  {currentJob.currentSource && (
+                    <div className="text-sm text-gray-600">
+                      Source: {currentJob.currentSource}
+                    </div>
+                  )}
+                  {currentJob.currentSearchTerm && (
+                    <div className="text-sm text-gray-600">
+                      Search: {currentJob.currentSearchTerm}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="text-center mt-4">
               <Button onClick={handleStopScan} variant="outline">
                 Stop Scanning
               </Button>
