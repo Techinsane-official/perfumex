@@ -117,7 +117,7 @@ export abstract class BaseScraper {
             
             launchOptions.executablePath = executablePath;
             launchOptions.args = [
-              // Minimal args for maximum speed
+              // Minimal args for maximum speed and memory efficiency
               '--no-sandbox',
               '--disable-setuid-sandbox',
               '--disable-dev-shm-usage',
@@ -136,7 +136,10 @@ export abstract class BaseScraper {
               '--disable-reading-from-canvas',
               '--disable-permissions-api',
               '--disable-web-security',
-              '--single-process'
+              '--single-process',
+              '--memory-pressure-off',
+              '--max_old_space_size=1024',
+              '--js-flags=--max-old-space-size=1024'
             ];
             launchOptions.timeout = 15000; // Reduce timeout for faster failure
             launchOptions.headless = 'new';
