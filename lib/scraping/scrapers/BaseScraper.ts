@@ -8,7 +8,6 @@ try {
   console.log('✅ @sparticuz/chromium loaded successfully');
 } catch (e) {
   console.warn('⚠️ @sparticuz/chromium not available:', e.message);
-  // @sparticuz/chromium not available, will use regular Puppeteer
 }
 
 /**
@@ -17,7 +16,6 @@ try {
 function getChromePath(): string | undefined {
   // Check for Vercel/serverless environment variables
   if (process.env.VERCEL || process.env.LAMBDA_TASK_ROOT) {
-    // Use chromium on Vercel
     return undefined; // Let Puppeteer use bundled Chromium
   }
   
@@ -68,25 +66,26 @@ export abstract class BaseScraper {
 
     try {
       const proxyUrl = (this.source.config as any)?.proxyUrl || process.env.HTTPS_PROXY || process.env.HTTP_PROXY;
+      
       // Enhanced launch args for serverless environments
       const launchArgs = [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--disable-gpu',
-          '--disable-background-timer-throttling',
-          '--disable-backgrounding-occluded-windows',
-          '--disable-renderer-backgrounding',
-          '--disable-web-security',
-          '--disable-features=TranslateUI',
-          '--disable-features=VizDisplayCompositor',
-          '--disable-ipc-flooding-protection',
-          '--single-process', // Important for serverless
-          '--memory-pressure-off'
-        ] as string[];
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--disable-gpu',
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding',
+        '--disable-web-security',
+        '--disable-features=TranslateUI',
+        '--disable-features=VizDisplayCompositor',
+        '--disable-ipc-flooding-protection',
+        '--single-process',
+        '--memory-pressure-off'
+      ] as string[];
         
       if (proxyUrl) {
         launchArgs.push(`--proxy-server=${proxyUrl}`);
@@ -204,40 +203,29 @@ export abstract class BaseScraper {
       }
       
     } catch (error) {
-        console.error(`❌ Browser launch failed for ${this.source.name}:`, error.message);
+      console.error(`❌ Browser launch failed for ${this.source.name}:`, error.message);
+      
+      // Multiple fallback strategies for serverless
+      if (isServerless) {
+        console.log('🔄 Trying serverless fallback configurations...');
         
-        // Multiple fallback strategies for serverless
-        if (isServerless) {
-          console.log('🔄 Trying serverless fallback configurations...');
-          
-          // Fallback 1: Try with @sparticuz/chromium if not used yet
-          if (chromium && !launchOptions.executablePath?.includes('chromium')) {
-            try {
-              console.log('🔄 Fallback 1: Forcing @sparticuz/chromium...');
-              const fallbackOptions = {
-                headless: 'new',
-                executablePath: await chromium.executablePath(),
-                args: chromium.args,
-                timeout: 60000
-              };
-              this.browser = await puppeteer.launch(fallbackOptions);
-              console.log(`✅ Browser launched with @sparticuz/chromium fallback for ${this.source.name}`);
-            } catch (chromiumError) {
-              console.error('❌ @sparticuz/chromium fallback failed:', chromiumError.message);
-              
-              // Fallback 2: Minimal serverless config
-              console.log('🔄 Fallback 2: Minimal serverless config...');
-              const minimalOptions = {
-                headless: 'new',
-                args: ['--no-sandbox', '--disable-setuid-sandbox', '--single-process'],
-                timeout: 60000
-              };
-              this.browser = await puppeteer.launch(minimalOptions);
-              console.log(`✅ Browser launched with minimal fallback for ${this.source.name}`);
-            }
-          } else {
+        // Fallback 1: Try with @sparticuz/chromium if not used yet
+        if (chromium && !launchOptions.executablePath?.includes('chromium')) {
+          try {
+            console.log('🔄 Fallback 1: Forcing @sparticuz/chromium...');
+            const fallbackOptions = {
+              headless: 'new',
+              executablePath: await chromium.executablePath(),
+              args: chromium.args,
+              timeout: 60000
+            };
+            this.browser = await puppeteer.launch(fallbackOptions);
+            console.log(`✅ Browser launched with @sparticuz/chromium fallback for ${this.source.name}`);
+          } catch (chromiumError) {
+            console.error('❌ @sparticuz/chromium fallback failed:', chromiumError.message);
+            
             // Fallback 2: Minimal serverless config
-            console.log('🔄 Fallback: Minimal serverless config...');
+            console.log('🔄 Fallback 2: Minimal serverless config...');
             const minimalOptions = {
               headless: 'new',
               args: ['--no-sandbox', '--disable-setuid-sandbox', '--single-process'],
@@ -247,8 +235,18 @@ export abstract class BaseScraper {
             console.log(`✅ Browser launched with minimal fallback for ${this.source.name}`);
           }
         } else {
-          throw error;
+          // Fallback 2: Minimal serverless config
+          console.log('🔄 Fallback: Minimal serverless config...');
+          const minimalOptions = {
+            headless: 'new',
+            args: ['--no-sandbox', '--disable-setuid-sandbox', '--single-process'],
+            timeout: 60000
+          };
+          this.browser = await puppeteer.launch(minimalOptions);
+          console.log(`✅ Browser launched with minimal fallback for ${this.source.name}`);
         }
+      } else {
+        throw error;
       }
       
       this.page = await this.browser.newPage();
@@ -436,7 +434,7 @@ export abstract class BaseScraper {
       console.warn(`Failed to extract attribute ${attribute} from ${selector}:`, error);
       return '';
     }
-    }
+  }
 
   /**
    * Extract href from a link element
