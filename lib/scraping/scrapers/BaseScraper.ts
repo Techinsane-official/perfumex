@@ -89,14 +89,23 @@ export abstract class BaseScraper {
             '--disable-features=VizDisplayCompositor',
           ],
           ignoreDefaultArgs: ['--disable-extensions'],
-          timeout: 60000
+          timeout: 30000 // Reduced timeout for faster failure
         };
         
-        console.log('🔧 Serverless launch options:', JSON.stringify(launchOptions, null, 2));
+        console.log('🔧 Serverless launch options:', { executablePath, argsCount: launchOptions.args?.length });
         
         console.log(`🚀 Launching browser for ${this.source.name}...`);
-        this.browser = await puppeteer.launch(launchOptions);
-        console.log(`✅ Browser launched successfully for ${this.source.name}`);
+        const launchStart = Date.now();
+        
+        // Add aggressive timeout for Vercel
+        const browserPromise = puppeteer.launch(launchOptions);
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Browser launch exceeded 25 seconds')), 25000)
+        );
+        
+        this.browser = await Promise.race([browserPromise, timeoutPromise]) as any;
+        const launchTime = Date.now() - launchStart;
+        console.log(`✅ Browser launched successfully for ${this.source.name} in ${launchTime}ms`);
         
         this.page = await this.browser.newPage();
         console.log(`📄 New page created for ${this.source.name}`);

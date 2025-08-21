@@ -74,13 +74,25 @@ export class ScrapingManager {
             continue;
         }
 
-        // Initialize the scraper (launch browser, create page)
-        console.log(`Initializing scraper for ${source.name}...`);
-        await scraper.initialize();
-        console.log(`✅ Scraper initialized for ${source.name}`);
-
-        this.scrapers.set(source.id, scraper);
-        console.log(`Initialized scraper for ${source.name}`);
+        // Initialize the scraper (launch browser, create page) - one at a time for Vercel
+        console.log(`[${sources.indexOf(source) + 1}/${sources.length}] Initializing scraper for ${source.name}...`);
+        
+        try {
+          await scraper.initialize();
+          console.log(`✅ [${sources.indexOf(source) + 1}/${sources.length}] Scraper initialized for ${source.name}`);
+          
+          this.scrapers.set(source.id, scraper);
+          
+          // Add delay between initializations to prevent Vercel overload
+          if (sources.indexOf(source) < sources.length - 1) {
+            console.log(`⏳ Waiting 2 seconds before next scraper...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          }
+        } catch (error) {
+          console.error(`❌ Failed to initialize scraper for ${source.name}:`, error);
+          // Continue with other scrapers instead of failing completely
+          continue;
+        }
       }
     } catch (error) {
       console.error('Error initializing scrapers:', error);
