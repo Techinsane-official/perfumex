@@ -71,25 +71,50 @@ export abstract class BaseScraper {
       if (isServerless) {
         console.log('🔧 Serverless environment detected - using conservative config');
         
-        // Force use of @sparticuz/chromium for Vercel
+        // Force use of @sparticuz/chromium for Vercel with ETXTBSY protection
         if (!chromium) {
           throw new Error('❌ @sparticuz/chromium is required for serverless environment but not available');
         }
         
-        const executablePath = await chromium.executablePath();
+        let executablePath;
+        try {
+          executablePath = await chromium.executablePath({
+            // Use a unique path to avoid ETXTBSY conflicts
+            cacheDir: `/tmp/chromium-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+          });
+        } catch (pathError) {
+          // Fallback to default path
+          executablePath = await chromium.executablePath();
+        }
+        
         console.log('✅ Using @sparticuz/chromium executable:', executablePath);
         
         const launchOptions: PuppeteerLaunchOptions = {
           executablePath,
           headless: 'new',
           args: [
-            ...chromium.args,
-            '--hide-scrollbars',
-            '--disable-web-security',
-            '--disable-features=VizDisplayCompositor',
+            // Use base chromium args but filter out problematic ones
+            ...chromium.args.filter((arg: string) => 
+              !arg.includes('--disable-extensions') && 
+              !arg.includes('--disable-dev-shm-usage')
+            ),
+            // Add our safe args
+            '--no-sandbox',
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage',
+            '--disable-gpu',
+            '--single-process',
+            '--disable-features=VizDisplayCompositor,TranslateUI',
+            '--memory-pressure-off',
+            '--max_old_space_size=512',
+            '--disable-background-timer-throttling',
+            '--disable-renderer-backgrounding',
+            '--disable-backgrounding-occluded-windows',
+            '--force-color-profile=srgb',
+            '--disable-features=AudioServiceOutOfProcess,TranslateUI,AcceptCHFrame',
+            '--allow-running-insecure-content'
           ],
-          ignoreDefaultArgs: ['--disable-extensions'],
-          timeout: 30000 // Reduced timeout for faster failure
+          timeout: 25000 // Aggressive timeout for faster failure
         };
         
         console.log('🔧 Serverless launch options:', { executablePath, argsCount: launchOptions.args?.length });
@@ -97,15 +122,49 @@ export abstract class BaseScraper {
         console.log(`🚀 Launching browser for ${this.source.name}...`);
         const launchStart = Date.now();
         
-        // Add aggressive timeout for Vercel
-        const browserPromise = puppeteer.launch(launchOptions);
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Browser launch exceeded 25 seconds')), 25000)
-        );
+        // Retry logic for ETXTBSY errors
+        let attempts = 0;
+        const maxAttempts = 3;
         
-        this.browser = await Promise.race([browserPromise, timeoutPromise]) as any;
-        const launchTime = Date.now() - launchStart;
-        console.log(`✅ Browser launched successfully for ${this.source.name} in ${launchTime}ms`);
+        while (attempts < maxAttempts) {
+          attempts++;
+          try {
+            console.log(`🔄 Browser launch attempt ${attempts}/${maxAttempts} for ${this.source.name}`);
+            
+            // Add aggressive timeout for Vercel
+            const browserPromise = puppeteer.launch(launchOptions);
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Browser launch exceeded 20 seconds')), 20000)
+            );
+            
+            this.browser = await Promise.race([browserPromise, timeoutPromise]) as any;
+            const launchTime = Date.now() - launchStart;
+            console.log(`✅ Browser launched successfully for ${this.source.name} in ${launchTime}ms (attempt ${attempts})`);
+            break; // Success, exit retry loop
+            
+          } catch (launchError: any) {
+            console.warn(`❌ Browser launch attempt ${attempts} failed:`, launchError.message);
+            
+            if (launchError.code === 'ETXTBSY' && attempts < maxAttempts) {
+              console.log(`🔄 ETXTBSY error detected, waiting 2 seconds before retry...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              
+              // Try with a new executable path for next attempt
+              try {
+                executablePath = await chromium.executablePath({
+                  cacheDir: `/tmp/chromium-retry-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                });
+                launchOptions.executablePath = executablePath;
+                console.log(`🔄 Using new executable path: ${executablePath}`);
+              } catch (pathError) {
+                console.warn(`⚠️ Could not get new executable path, continuing with existing`);
+              }
+              continue; // Retry
+            } else {
+              throw launchError; // Non-retryable error or max attempts reached
+            }
+          }
+        }
         
         this.page = await this.browser.newPage();
         console.log(`📄 New page created for ${this.source.name}`);
