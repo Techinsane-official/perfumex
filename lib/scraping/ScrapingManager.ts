@@ -4,6 +4,8 @@ import { AmazonNLScraper } from './scrapers/AmazonNLScraper';
 import { AmazonFRScraper } from './scrapers/AmazonFRScraper';
 import { AmazonDEScraper } from './scrapers/AmazonDEScraper';
 import { HouseOfNicheScraper } from './scrapers/HouseOfNicheScraper';
+import { PlaywrightBaseScraper } from './scrapers/PlaywrightBaseScraper';
+import { PlaywrightBolComScraper } from './scrapers/PlaywrightBolComScraper';
 import { 
   ScrapingSource, 
   PriceScrapingResult, 
@@ -26,7 +28,7 @@ type SaveResultsCallback = (
 ) => Promise<void> | void;
 
 export class ScrapingManager {
-  private scrapers: Map<string, BaseScraper> = new Map();
+  private scrapers: Map<string, BaseScraper | PlaywrightBaseScraper> = new Map();
   private matcher: ProductMatcher;
   private isRunning = false;
   private currentJob: ScrapingJob | null = null;
@@ -47,11 +49,21 @@ export class ScrapingManager {
       for (const source of sources) {
         if (!source.isActive) continue;
 
-        let scraper: BaseScraper;
+        let scraper: BaseScraper | PlaywrightBaseScraper;
+
+        // Determine whether to use Playwright or Puppeteer
+        const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.VERCEL_ENV;
+        const usePlaywright = isServerless; // Use Playwright in serverless environments
 
         switch (source.name.toLowerCase()) {
           case 'bol.com':
-            scraper = new BolComScraper(source);
+            if (usePlaywright) {
+              console.log(`🎭 Using Playwright for ${source.name} (serverless optimization)`);
+              scraper = new PlaywrightBolComScraper(source);
+            } else {
+              console.log(`🤖 Using Puppeteer for ${source.name} (local environment)`);
+              scraper = new BolComScraper(source);
+            }
             break;
           case 'amazon netherlands':
           case 'amazon nl':
