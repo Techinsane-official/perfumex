@@ -5,7 +5,9 @@ import { ScrapingSource, ScrapingSourceConfig } from '../types';
 let chromium: any;
 try {
   chromium = require('@sparticuz/chromium');
+  console.log('✅ @sparticuz/chromium loaded successfully');
 } catch (e) {
+  console.warn('⚠️ @sparticuz/chromium not available:', e.message);
   // @sparticuz/chromium not available, will use regular Puppeteer
 }
 
@@ -99,21 +101,39 @@ export abstract class BaseScraper {
       };
       
       // Special configuration for serverless environments
-      if (process.env.VERCEL || process.env.LAMBDA_TASK_ROOT) {
-        console.log('🔧 Configuring Puppeteer for serverless environment...');
+      const isServerless = process.env.VERCEL || process.env.LAMBDA_TASK_ROOT || process.env.VERCEL_ENV;
+      
+      if (isServerless) {
+        console.log('🔧 Serverless environment detected:', {
+          VERCEL: process.env.VERCEL,
+          LAMBDA_TASK_ROOT: process.env.LAMBDA_TASK_ROOT,
+          VERCEL_ENV: process.env.VERCEL_ENV
+        });
         
         if (chromium) {
-          // Use @sparticuz/chromium for better Vercel compatibility
-          launchOptions.executablePath = await chromium.executablePath();
-          launchOptions.args = chromium.args.concat([
-            '--disable-extensions',
-            '--disable-plugins', 
-            '--disable-images', // Save bandwidth
-            '--disable-javascript-harmony-shipping',
-            '--disable-background-networking'
-          ]);
-          console.log('✅ Using @sparticuz/chromium for Vercel');
+          try {
+            // Use @sparticuz/chromium for better Vercel compatibility
+            const executablePath = await chromium.executablePath();
+            console.log('🚀 @sparticuz/chromium executable path:', executablePath);
+            
+            launchOptions.executablePath = executablePath;
+            launchOptions.args = chromium.args.concat([
+              '--disable-extensions',
+              '--disable-plugins', 
+              '--disable-images', // Save bandwidth
+              '--disable-javascript-harmony-shipping',
+              '--disable-background-networking'
+            ]);
+            console.log('✅ Using @sparticuz/chromium for serverless');
+          } catch (chromiumError) {
+            console.error('❌ Failed to get @sparticuz/chromium path:', chromiumError);
+            // Fallback to bundled Chromium
+            launchOptions.executablePath = undefined;
+            launchOptions.args = chromium.args || launchArgs;
+            console.log('⚠️ Using @sparticuz/chromium args with bundled executable');
+          }
         } else {
+          console.log('❌ @sparticuz/chromium not available, using fallback');
           // Fallback to bundled Chromium
           launchOptions.executablePath = undefined;
           launchOptions.args = [
@@ -139,16 +159,46 @@ export abstract class BaseScraper {
       } catch (error) {
         console.error(`❌ Browser launch failed for ${this.source.name}:`, error.message);
         
-        // Fallback: Try with minimal options for serverless
-        if (process.env.VERCEL || process.env.LAMBDA_TASK_ROOT) {
-          console.log('🔄 Trying fallback configuration...');
-          const fallbackOptions = {
-            headless: 'new',
-            args: ['--no-sandbox', '--disable-setuid-sandbox'],
-            timeout: 60000
-          };
-          this.browser = await puppeteer.launch(fallbackOptions);
-          console.log(`✅ Browser launched with fallback options for ${this.source.name}`);
+        // Multiple fallback strategies for serverless
+        if (isServerless) {
+          console.log('🔄 Trying serverless fallback configurations...');
+          
+          // Fallback 1: Try with @sparticuz/chromium if not used yet
+          if (chromium && !launchOptions.executablePath?.includes('chromium')) {
+            try {
+              console.log('🔄 Fallback 1: Forcing @sparticuz/chromium...');
+              const fallbackOptions = {
+                headless: 'new',
+                executablePath: await chromium.executablePath(),
+                args: chromium.args,
+                timeout: 60000
+              };
+              this.browser = await puppeteer.launch(fallbackOptions);
+              console.log(`✅ Browser launched with @sparticuz/chromium fallback for ${this.source.name}`);
+            } catch (chromiumError) {
+              console.error('❌ @sparticuz/chromium fallback failed:', chromiumError.message);
+              
+              // Fallback 2: Minimal serverless config
+              console.log('🔄 Fallback 2: Minimal serverless config...');
+              const minimalOptions = {
+                headless: 'new',
+                args: ['--no-sandbox', '--disable-setuid-sandbox', '--single-process'],
+                timeout: 60000
+              };
+              this.browser = await puppeteer.launch(minimalOptions);
+              console.log(`✅ Browser launched with minimal fallback for ${this.source.name}`);
+            }
+          } else {
+            // Fallback 2: Minimal serverless config
+            console.log('🔄 Fallback: Minimal serverless config...');
+            const minimalOptions = {
+              headless: 'new',
+              args: ['--no-sandbox', '--disable-setuid-sandbox', '--single-process'],
+              timeout: 60000
+            };
+            this.browser = await puppeteer.launch(minimalOptions);
+            console.log(`✅ Browser launched with minimal fallback for ${this.source.name}`);
+          }
         } else {
           throw error;
         }
