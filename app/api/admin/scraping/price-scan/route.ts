@@ -140,20 +140,33 @@ export async function POST(request: NextRequest) {
       where: sources && sources.length > 0 ? { id: { in: sources }, isActive: true } : { isActive: true },
     });
 
-    // Kick off the job without waiting
-    manager
-      .initializeScrapers(activeSources)
-      .then(() => manager.startScrapingJob({ 
-        ...job, 
-        config: {
-          ...job.config,
-          sources: sources || [] // Ensure sources are passed correctly
-        } as any 
-      } as any, productsToProcess as any))
-      .catch(async (err) => {
-        console.error('Scraping job failed to start:', err);
-        await prisma.priceScrapingJob.update({ where: { id: job.id }, data: { status: 'FAILED', errorMessage: String(err) } });
-      });
+    // Kick off the job without waiting - with proper error handling
+    (async () => {
+      try {
+        console.log(`Initializing scrapers for job ${job.id}...`);
+        await manager.initializeScrapers(activeSources);
+        console.log(`✅ Scrapers initialized, starting job ${job.id}...`);
+        
+        await manager.startScrapingJob({ 
+          ...job, 
+          config: {
+            ...job.config,
+            sources: sources || [] // Ensure sources are passed correctly
+          } as any 
+        } as any, productsToProcess as any);
+        
+        console.log(`✅ Job ${job.id} completed successfully`);
+      } catch (err) {
+        console.error(`❌ Scraping job ${job.id} failed:`, err);
+        await prisma.priceScrapingJob.update({ 
+          where: { id: job.id }, 
+          data: { 
+            status: 'FAILED', 
+            errorMessage: String(err) 
+          } 
+        });
+      }
+    })();
 
     const response: PriceScanResponse = {
       success: true,
