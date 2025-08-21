@@ -143,7 +143,13 @@ export async function POST(request: NextRequest) {
     // Kick off the job without waiting
     manager
       .initializeScrapers(activeSources)
-      .then(() => manager.startScrapingJob({ ...job, config: job.config as any } as any, productsToProcess as any))
+      .then(() => manager.startScrapingJob({ 
+        ...job, 
+        config: {
+          ...job.config,
+          sources: sources || [] // Ensure sources are passed correctly
+        } as any 
+      } as any, productsToProcess as any))
       .catch(async (err) => {
         console.error('Scraping job failed to start:', err);
         await prisma.priceScrapingJob.update({ where: { id: job.id }, data: { status: 'FAILED', errorMessage: String(err) } });

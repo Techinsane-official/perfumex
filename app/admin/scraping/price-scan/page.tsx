@@ -131,17 +131,24 @@ export default function PriceScanPage() {
     setScanProgress(0);
 
     try {
-      // Create scraping job
+      // Create scraping job with updated config including selected sources
+      const requestBody = {
+        supplierId: selectedSupplier,
+        sources: selectedSources,
+        config: {
+          ...scanConfig,
+          sources: selectedSources // Ensure sources are included in config
+        }
+      };
+      
+      console.log('Starting price scan with request body:', requestBody);
+      
       const response = await fetch('/api/admin/scraping/price-scan', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          supplierId: selectedSupplier,
-          sources: selectedSources,
-          config: scanConfig
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {

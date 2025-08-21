@@ -90,6 +90,8 @@ export class ScrapingManager {
     try {
       console.log(`Starting scraping job: ${job.name}`);
       console.log(`Total products to process: ${normalizedProducts.length}`);
+      console.log(`Job config sources:`, job.config.sources);
+      console.log(`Available scrapers:`, Array.from(this.scrapers.keys()));
 
       // Update job status
       await this.updateJobStatus(job.id!, 'RUNNING', {
@@ -157,6 +159,8 @@ export class ScrapingManager {
     let successful = 0;
     let failed = 0;
 
+    console.log(`Processing batch with ${products.length} products and ${sourceIds.length} sources:`, sourceIds);
+
     const activeScrapers = Array.from(this.scrapers.entries())
       .filter(([id]) => sourceIds.includes(id))
       .sort(([, a], [, b]) => {
@@ -164,6 +168,8 @@ export class ScrapingManager {
         const sourceB = b.getSourceConfig();
         return (sourceB.priority || 1) - (sourceA.priority || 1);
       });
+
+    console.log(`Active scrapers after filtering: ${activeScrapers.length}`, activeScrapers.map(([id]) => id));
 
     for (const product of products) {
       try {
